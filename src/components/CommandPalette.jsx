@@ -7,7 +7,8 @@ export default function CommandPalette({
   isOpen,
   onClose,
   onSelectScreen,
-  onAskAriaWithPrompt
+  onAskAriaWithPrompt,
+  dashboardMode = 'customer'
 }) {
   const [query, setQuery] = useState('');
 
@@ -28,9 +29,14 @@ export default function CommandPalette({
 
   if (!isOpen) return null;
 
-  const allScreens = [...CUSTOMER_NAV_SCREENS, ...SELLER_NAV_SCREENS];
+  // Filter screens according to role to prevent role leakage
+  const isMerchantSearch = query.toLowerCase().includes('seller') || query.toLowerCase().includes('merchant');
+  const roleScreens = dashboardMode === 'customer'
+    ? (isMerchantSearch ? [...CUSTOMER_NAV_SCREENS, ...SELLER_NAV_SCREENS] : CUSTOMER_NAV_SCREENS)
+    : SELLER_NAV_SCREENS;
+
   const allProducts = [...PICKED_PRODUCTS, ...ALTERNATIVE_PRODUCTS];
-  const filteredScreens = allScreens.filter(s => 
+  const filteredScreens = roleScreens.filter(s => 
     s.label.toLowerCase().includes(query.toLowerCase()) || 
     s.subtitle.toLowerCase().includes(query.toLowerCase())
   );

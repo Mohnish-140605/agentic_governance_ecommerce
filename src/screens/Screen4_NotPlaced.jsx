@@ -17,8 +17,12 @@ export default function Screen4_NotPlaced({
   onNavigateToScreen,
   onRaiseLimit,
   onAskAriaAboutProduct,
-  onShowToast: _onShowToast
+  onShowToast: _onShowToast,
+  currentUser,
+  rules
 }) {
+  const userName = currentUser ? currentUser.name.split(' ')[0] : 'Priya';
+  const monthlyCap = rules ? rules.monthlyCap : 50000;
   return (
     <div className="not-placed-screen-wrap animate-fade-in" style={{
       backgroundColor: '#FAF5EE',
@@ -81,7 +85,7 @@ export default function Screen4_NotPlaced({
             margin: '0 auto',
             lineHeight: 1.6
           }}>
-            This one is <strong style={{ color: 'var(--ink)' }}>₹75,000</strong> and your self-imposed monthly ceiling is <strong style={{ color: 'var(--ink)' }}>₹50,000</strong>. No worries at all. Your intent is protected, and here are thoughtful alternatives curated inside your comfort zone.
+            This one is <strong style={{ color: 'var(--ink)' }}>₹75,000</strong> and your self-imposed monthly ceiling is <strong style={{ color: 'var(--ink)' }}>₹{monthlyCap.toLocaleString('en-IN')}</strong>. No worries at all. Your intent is protected, and here are thoughtful alternatives curated inside your comfort zone.
           </p>
         </div>
 
@@ -105,7 +109,9 @@ export default function Screen4_NotPlaced({
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>REQUESTED TOTAL</div>
                 <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--coral-dark)' }}>₹75,000</div>
-                <div style={{ fontSize: '11px', color: 'var(--coral-dark)', fontWeight: 600 }}>Limit delta: +₹25,000</div>
+                <div style={{ fontSize: '11px', color: 'var(--coral-dark)', fontWeight: 600 }}>
+                  Limit delta: +₹{(Math.max(0, 75000 - monthlyCap)).toLocaleString('en-IN')}
+                </div>
               </div>
             </div>
 
@@ -113,13 +119,13 @@ export default function Screen4_NotPlaced({
             <div className="trust-receipt-details" style={{ backgroundColor: '#FFFBFB' }}>
               <div className="receipt-meta-box">
                 <div className="receipt-meta-label">Active Spend Rule</div>
-                <div className="receipt-meta-value">₹50,000 / month</div>
+                <div className="receipt-meta-value">₹{monthlyCap.toLocaleString('en-IN')} / month</div>
                 <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Single-purchase threshold</div>
               </div>
 
               <div className="receipt-meta-box">
                 <div className="receipt-meta-label">Shopper ID</div>
-                <div className="receipt-meta-value">Priya S. (#CRN-8821)</div>
+                <div className="receipt-meta-value">{userName} (#CRN-8821)</div>
                 <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Aria autonomous guard</div>
               </div>
 
@@ -158,7 +164,7 @@ export default function Screen4_NotPlaced({
                     Exceeds monthly allowance
                   </div>
                   <div className="stamp-desc">
-                    ₹75,000 exceeds ₹50,000 cap by exactly ₹25,000.
+                    ₹75,000 exceeds ₹{monthlyCap.toLocaleString('en-IN')} cap by ₹{(Math.max(0, 75000 - monthlyCap)).toLocaleString('en-IN')}.
                   </div>
                 </div>
 

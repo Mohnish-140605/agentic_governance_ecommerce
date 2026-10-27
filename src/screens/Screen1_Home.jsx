@@ -19,9 +19,11 @@ export default function Screen1_Home({
   onQuickOrder,
   onShowToast: _onShowToast,
   currentUser,
-  currentLocation
+  currentLocation,
+  rules
 }) {
   const [promptInput, setPromptInput] = useState('');
+  const userName = currentUser ? currentUser.name.split(' ')[0] : 'Priya';
 
   const quickPrompts = [
     "Find me a quiet study laptop under ₹60,000",
@@ -282,7 +284,7 @@ export default function Screen1_Home({
                 DETERMINISTIC SAFETY
               </div>
               <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 600, color: 'var(--ink)' }}>
-                Nice choice, Priya. Aria never spends past your rules.
+                Nice choice, {userName}. Aria never spends past your rules.
               </h2>
             </div>
             <div style={{
@@ -297,7 +299,7 @@ export default function Screen1_Home({
               fontWeight: 500
             }}>
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-              <span>Active Rule Profile: Priya's Calm Home</span>
+              <span>Active Rule Profile: {rules?.activeProfile || `${userName}'s Calm Home`}</span>
             </div>
           </div>
 
@@ -612,7 +614,7 @@ export default function Screen1_Home({
                 <CheckCircle2 size={18} />
               </div>
               <div className="stamp-name">STAMP 02 · PRE-APPROVED</div>
-              <div className="stamp-desc">Under Priya's ₹1,00,000 Cap</div>
+              <div className="stamp-desc">Under {userName}'s ₹{rules ? rules.approvalThreshold.toLocaleString('en-IN') : '1,00,000'} Cap</div>
             </div>
 
             <div className="trust-stamp-card stamp-card-green" style={{ padding: '14px' }}>

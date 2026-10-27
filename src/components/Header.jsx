@@ -10,7 +10,9 @@ import {
   Store,
   User,
   PlusCircle,
-  ChevronDown
+  ChevronDown,
+  ArrowLeft,
+  Briefcase
 } from 'lucide-react';
 import { CUSTOMER_NAV_SCREENS, SELLER_NAV_SCREENS } from '../data/navigation';
 import { GoogleLogo } from './GoogleAuthModal';
@@ -56,68 +58,64 @@ export default function Header({
         justifyContent: 'space-between',
         gap: '16px'
       }}>
-        {/* Left: Logo & Role Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {/* Left: Logo & Role Isolation */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <CairnLogo onClick={() => setActiveScreen(dashboardMode === 'customer' ? 'explore' : 'seller_hub')} />
 
-          {/* Role Dashboard Switcher */}
-          <div style={{
-            display: 'flex',
-            backgroundColor: 'rgba(27, 27, 24, 0.06)',
-            padding: '3px',
-            borderRadius: 'var(--radius-pill)',
-            border: '1px solid var(--border-cream)'
-          }}>
-            <button
-              onClick={() => {
-                setDashboardMode('customer');
-                setActiveScreen('explore');
-              }}
-              style={{
-                display: 'flex',
+          {dashboardMode === 'seller' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '6px 14px',
+                backgroundColor: 'var(--forest-green)',
+                color: '#FFFFFF',
+                padding: '4px 12px',
                 borderRadius: 'var(--radius-pill)',
-                fontSize: '12.5px',
-                fontWeight: dashboardMode === 'customer' ? 700 : 500,
-                backgroundColor: dashboardMode === 'customer' ? '#FFFFFF' : 'transparent',
-                color: dashboardMode === 'customer' ? 'var(--forest-green)' : 'var(--ink-secondary)',
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: dashboardMode === 'customer' ? 'var(--shadow-warm-sm)' : 'none',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Sparkles size={13} color={dashboardMode === 'customer' ? 'var(--forest-green)' : 'var(--ink-muted)'} />
-              <span>Customer Sanctuary</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setDashboardMode('seller');
-                setActiveScreen('seller_hub');
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-pill)',
-                fontSize: '12.5px',
-                fontWeight: dashboardMode === 'seller' ? 700 : 500,
-                backgroundColor: dashboardMode === 'seller' ? 'var(--forest-green)' : 'transparent',
-                color: dashboardMode === 'seller' ? '#FFFFFF' : 'var(--ink-secondary)',
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: dashboardMode === 'seller' ? 'var(--shadow-warm-sm)' : 'none',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Store size={13} color={dashboardMode === 'seller' ? '#FFFFFF' : 'var(--ink-muted)'} />
-              <span>Seller Studio</span>
-            </button>
-          </div>
+                fontSize: '11.5px',
+                fontWeight: 700,
+                letterSpacing: '0.04em'
+              }}>
+                <Store size={12} />
+                <span>MERCHANT STUDIO</span>
+              </div>
+              <button
+                onClick={() => {
+                  setDashboardMode('customer');
+                  setActiveScreen('explore');
+                }}
+                title="Switch back to shopping as customer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid var(--border-cream)',
+                  borderRadius: 'var(--radius-pill)',
+                  padding: '5px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'var(--ink-secondary)',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-warm-sm)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <ArrowLeft size={13} />
+                <span>Return to Store</span>
+              </button>
+            </div>
+          ) : (
+            <span style={{
+              fontSize: '12px',
+              color: 'var(--ink-muted)',
+              fontStyle: 'italic',
+              display: 'none',
+              '@media (min-width: 640px)': { display: 'inline' }
+            }}>
+              mindful shopping with Aria
+            </span>
+          )}
         </div>
 
         {/* Center: Search pill with shortcut ⌘K (Customer) or Merchant Quick Actions (Seller) */}
@@ -382,6 +380,60 @@ export default function Header({
                     <span>Safeguards & Profile</span>
                   </button>
 
+                  {dashboardMode === 'customer' ? (
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        setDashboardMode('seller');
+                        setActiveScreen('seller_hub');
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '12.5px',
+                        color: 'var(--forest-green)',
+                        fontWeight: 600,
+                        border: 'none',
+                        background: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <Store size={14} />
+                      <span>Merchant Studio (Seller)</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        setDashboardMode('customer');
+                        setActiveScreen('explore');
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '12.5px',
+                        color: 'var(--forest-green)',
+                        fontWeight: 600,
+                        border: 'none',
+                        background: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <Sparkles size={14} />
+                      <span>Return to Customer Store</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => {
                       setUserDropdownOpen(false);
@@ -394,8 +446,7 @@ export default function Header({
                       alignItems: 'center',
                       gap: '8px',
                       fontSize: '12.5px',
-                      color: 'var(--forest-green)',
-                      fontWeight: 600,
+                      color: 'var(--ink-secondary)',
                       border: 'none',
                       background: 'none',
                       borderRadius: '8px',
@@ -505,6 +556,36 @@ export default function Header({
               </button>
             );
           })}
+          {dashboardMode === 'customer' && (
+            <button
+              onClick={() => {
+                setDashboardMode('seller');
+                setActiveScreen('seller_hub');
+              }}
+              style={{
+                marginLeft: 'auto',
+                padding: '11px 14px',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                color: 'var(--forest-green)',
+                background: 'transparent',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer'
+              }}
+            >
+              <Briefcase size={13} />
+              <span>Sell on Cairn · Studio →</span>
+            </button>
+          )}
+          {dashboardMode === 'seller' && (
+            <div style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--forest-green)', fontWeight: 600, paddingRight: '6px' }}>
+              🌿 Verified Artisan Portal
+            </div>
+          )}
         </div>
       </nav>
 
@@ -518,26 +599,7 @@ export default function Header({
           flexDirection: 'column',
           gap: '8px'
         }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <button
-              onClick={() => {
-                setDashboardMode('customer');
-                setActiveScreen('explore');
-                setMobileMenuOpen(false);
-              }}
-              style={{
-                flex: 1,
-                padding: '8px',
-                borderRadius: '10px',
-                backgroundColor: dashboardMode === 'customer' ? 'var(--forest-green)' : '#F1F5F9',
-                color: dashboardMode === 'customer' ? '#FFFFFF' : 'var(--ink)',
-                fontSize: '12px',
-                fontWeight: 600,
-                border: 'none'
-              }}
-            >
-              Customer Sanctuary
-            </button>
+          {dashboardMode === 'customer' ? (
             <button
               onClick={() => {
                 setDashboardMode('seller');
@@ -545,19 +607,53 @@ export default function Header({
                 setMobileMenuOpen(false);
               }}
               style={{
-                flex: 1,
-                padding: '8px',
+                width: '100%',
+                padding: '10px 14px',
                 borderRadius: '10px',
-                backgroundColor: dashboardMode === 'seller' ? 'var(--forest-green)' : '#F1F5F9',
-                color: dashboardMode === 'seller' ? '#FFFFFF' : 'var(--ink)',
-                fontSize: '12px',
+                backgroundColor: 'var(--forest-green-light)',
+                color: 'var(--forest-green)',
+                fontSize: '13px',
                 fontWeight: 600,
-                border: 'none'
+                border: '1px solid var(--forest-green-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                marginBottom: '8px'
               }}
             >
-              Seller Studio
+              <Store size={15} />
+              <span>Open Merchant Studio →</span>
             </button>
-          </div>
+          ) : (
+            <button
+              onClick={() => {
+                setDashboardMode('customer');
+                setActiveScreen('explore');
+                setMobileMenuOpen(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--bg-cream-subtle)',
+                color: 'var(--ink)',
+                fontSize: '13px',
+                fontWeight: 600,
+                border: '1px solid var(--border-cream)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                marginBottom: '8px'
+              }}
+            >
+              <ArrowLeft size={15} />
+              <span>Return to Customer Store</span>
+            </button>
+          )}
 
           {navItems.map((item) => (
             <button

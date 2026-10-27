@@ -141,6 +141,13 @@ export default function App() {
     }
   };
 
+  // Screen-role auto-synchronization: prevents blank screens under all circumstances
+  const handleNavigateToScreen = (screenId) => {
+    const isSeller = ['seller_hub', 'store_health', 'seller_orders'].includes(screenId);
+    setDashboardMode(isSeller ? 'seller' : 'customer');
+    setActiveScreen(screenId);
+  };
+
   // Approve an order
   const handleApproveOrder = (orderId) => {
     setOrders((prev) =>
@@ -166,7 +173,19 @@ export default function App() {
 
   // Reject / release hold on order
   const handleRejectOrder = (orderId) => {
-    showToast(`Order #${orderId} hold released safely.`);
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            status: 'failed',
+            flagReason: 'Hold released by user · No payment debited'
+          };
+        }
+        return o;
+      })
+    );
+    showToast(`Order #${orderId} hold released safely. Zero funds debited.`);
   };
 
   // Raise limit from Screen 4
@@ -183,10 +202,10 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-cream)' }}>
-      {/* Primary Header with Role Switcher, Google Identity & Live Location */}
+      {/* Primary Header with Role Isolation, Google Identity & Live Location */}
       <Header
         activeScreen={activeScreen}
-        setActiveScreen={setActiveScreen}
+        setActiveScreen={handleNavigateToScreen}
         dashboardMode={dashboardMode}
         setDashboardMode={setDashboardMode}
         currentUser={currentUser}
@@ -196,7 +215,7 @@ export default function App() {
         onOpenGoogleAuth={() => setGoogleAuthOpen(true)}
         onOpenLocationModal={() => setLocationModalOpen(true)}
         onOpenAddListing={() => setAddListingModalOpen(true)}
-        cartCount={orders.filter(o => o.status === 'needs_ok' || o.status === 'placed').length}
+        cartCount={pendingApprovalsCount}
         pendingApprovalsCount={pendingApprovalsCount}
       />
 
@@ -208,46 +227,53 @@ export default function App() {
             {activeScreen === 'explore' && (
               <Screen1_Home
                 onAskAria={handleAskAria}
-                onNavigateToScreen={setActiveScreen}
+                onNavigateToScreen={handleNavigateToScreen}
                 onQuickOrder={handleQuickOrder}
                 onShowToast={showToast}
                 currentUser={currentUser}
                 currentLocation={currentLocation}
+                rules={rules}
               />
             )}
 
             {activeScreen === 'chat' && (
               <Screen2_Chat
-                onNavigateToScreen={setActiveScreen}
+                onNavigateToScreen={handleNavigateToScreen}
                 onShowToast={showToast}
                 initialPrompt={chatPrompt}
                 currentUser={currentUser}
                 currentLocation={currentLocation}
+                rules={rules}
               />
             )}
 
             {activeScreen === 'needs_ok' && (
               <Screen3_NeedsOK
+                orders={orders}
                 onApproveOrder={handleApproveOrder}
                 onRejectOrder={handleRejectOrder}
                 onShowToast={showToast}
-                onNavigateToScreen={setActiveScreen}
+                onNavigateToScreen={handleNavigateToScreen}
+                currentUser={currentUser}
+                rules={rules}
               />
             )}
 
             {activeScreen === 'not_placed' && (
               <Screen4_NotPlaced
-                onNavigateToScreen={setActiveScreen}
+                onNavigateToScreen={handleNavigateToScreen}
                 onRaiseLimit={handleRaiseLimit}
                 onAskAriaAboutProduct={handleAskAria}
                 onShowToast={showToast}
+                currentUser={currentUser}
+                rules={rules}
               />
             )}
 
             {activeScreen === 'orders' && (
               <Screen5_Orders
                 orders={orders}
-                onNavigateToScreen={setActiveScreen}
+                onNavigateToScreen={handleNavigateToScreen}
                 onShowToast={showToast}
                 currentUser={currentUser}
                 currentLocation={currentLocation}
@@ -264,7 +290,7 @@ export default function App() {
 
             {activeScreen === 'how_aria_works' && (
               <Screen9_HowAriaWorks
-                onNavigateToScreen={setActiveScreen}
+                onNavigateToScreen={handleNavigateToScreen}
               />
             )}
           </>
@@ -302,7 +328,7 @@ export default function App() {
       {/* Global Pinned Floating Action Button: Ask Aria (Customer mode only) */}
       {dashboardMode === 'customer' && (
         <AskAriaFab
-          onOpenChat={() => setActiveScreen('chat')}
+          onOpenChat={() => handleNavigateToScreen('chat')}
           activeScreen={activeScreen}
         />
       )}
@@ -311,15 +337,8 @@ export default function App() {
       <CommandPalette
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
-        onSelectScreen={(screenId) => {
-          // Switch to appropriate dashboard mode if selecting a screen from the other role
-          if (['seller_hub', 'store_health', 'seller_orders'].includes(screenId)) {
-            setDashboardMode('seller');
-          } else {
-            setDashboardMode('customer');
-          }
-          setActiveScreen(screenId);
-        }}
+        dashboardMode={dashboardMode}
+        onSelectScreen={handleNavigateToScreen}
         onAskAriaWithPrompt={handleAskAria}
       />
 
@@ -354,7 +373,7 @@ export default function App() {
         isOpen={cartDrawerOpen}
         onClose={() => setCartDrawerOpen(false)}
         orders={orders}
-        onNavigateToScreen={setActiveScreen}
+        onNavigateToScreen={handleNavigateToScreen}
       />
 
       {/* Notification Toast */}
@@ -364,7 +383,11 @@ export default function App() {
       />
 
       {/* Reassurance Footer */}
-      <Footer onNavigateToScreen={setActiveScreen} />
+      <Footer 
+        onNavigateToScreen={handleNavigateToScreen} 
+        dashboardMode={dashboardMode}
+        setDashboardMode={setDashboardMode}
+      />
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default function TrustReceipt({
   subtitle = 'VERIFIED INTENT VOUCHER',
   authorizedAt = 'Today, 10:43 AM',
   paymentChannel = 'HDFC Priority ••4902',
-  destination = 'Jor Bagh, Priya\'s Residence',
+  destination = 'Registered Delivery Address',
   sha256 = '7f920eb18a24c559d81a942001e',
   stamps = null,
   onTrackOrder = null,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, 
   Send, 
@@ -16,9 +16,12 @@ export default function Screen2_Chat({
   onShowToast,
   initialPrompt = '',
   currentUser,
-  currentLocation: _currentLocation
+  currentLocation: _currentLocation,
+  rules
 }) {
   const userName = currentUser ? currentUser.name.split(' ')[0] : 'Priya';
+  const processedPromptRef = useRef(initialPrompt);
+
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -55,7 +58,7 @@ export default function Screen2_Chat({
       sender: 'aria',
       name: 'Aria',
       time: '10:43 AM',
-      text: "Everything clears your caps nicely. I've placed the order for you, Priya."
+      text: `Everything clears your caps nicely. I've placed the order for you, ${userName}.`
     },
     {
       id: 5,
@@ -82,7 +85,7 @@ export default function Screen2_Chat({
     { label: "Show remaining monthly allowance", icon: "budget" }
   ];
 
-  const handleSend = (textToSend) => {
+  const handleSend = React.useCallback((textToSend) => {
     const text = textToSend || inputVal;
     if (!text.trim()) return;
 
@@ -109,9 +112,16 @@ export default function Screen2_Chat({
       } else if (lower.includes('port') || lower.includes('customize')) {
         replyText = "Noted. I have instructed Framework support to include 2x USB-C, 1x USB-A, and 1x HDMI expansion modules in your sealed parcel.";
       } else if (lower.includes('allowance') || lower.includes('budget') || lower.includes('rule')) {
-        replyText = "Your monthly cap is ₹50,000 for regular purchases. This modular hardware purchase was cleared under your separate pre-authorized hardware allowance with ₹5,010 remaining headroom.";
+        const cap = rules ? rules.monthlyCap.toLocaleString('en-IN') : '50,000';
+        replyText = `Your monthly spending cap is ₹${cap} for regular purchases. All transactions are audited and held strictly within your personal boundaries.`;
       } else if (lower.includes('cancel')) {
         replyText = "Your 15-minute tranquility hold is active. With one tap, I can release this order back to inventory without any transaction fee.";
+      } else if (lower.includes('laptop') || lower.includes('60,000') || lower.includes('study')) {
+        replyText = "I found the Asus ZenBook OLED and Acer Swift Go 14. Both feature whisper-quiet fans, 16GB RAM, and fall safely under your ₹60,000 limit with verified merchant authenticity.";
+      } else if (lower.includes('coffee') || lower.includes('bean') || lower.includes('restock')) {
+        replyText = "Restocking 2x 250g Blue Tokai Whole Bean Arabica (Dark Roast). Total is ₹1,120, well below your pantry allowance. Would you like me to mint the Trust Receipt?";
+      } else if (lower.includes('linen') || lower.includes('sheet') || lower.includes('bed')) {
+        replyText = "Sourced 100% Organic Percale Linen Bedding set from certified weavers in Jaipur (₹4,800). Within your living budget and origin verified.";
       }
 
       const ariaMsg = {
@@ -125,7 +135,15 @@ export default function Screen2_Chat({
 
       setMessages((prev) => [...prev, ariaMsg]);
     }, 900);
-  };
+  }, [inputVal, userName, rules]);
+
+  // Trigger auto-send if a new prompt arrives from Screen 1 or Command Palette
+  useEffect(() => {
+    if (initialPrompt && initialPrompt !== processedPromptRef.current) {
+      processedPromptRef.current = initialPrompt;
+      handleSend(initialPrompt);
+    }
+  }, [initialPrompt, handleSend]);
 
   const handleTrackOrder = () => {
     onNavigateToScreen('orders');

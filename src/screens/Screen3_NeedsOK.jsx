@@ -15,15 +15,27 @@ import {
 import confetti from 'canvas-confetti';
 
 export default function Screen3_NeedsOK({
+  orders,
   onApproveOrder,
   onRejectOrder,
   onShowToast,
-  onNavigateToScreen
+  onNavigateToScreen,
+  currentUser,
+  rules
 }) {
+  const userName = currentUser ? currentUser.name.split(' ')[0] : 'Priya';
+  const pendingOrder = (orders && orders.find(o => o.id === 'CRN-88421')) || (orders && orders.find(o => o.status === 'needs_ok')) || {
+    id: 'CRN-88421',
+    item: 'Dell XPS 13 Plus',
+    price: 120000,
+    merchant: 'Dell Direct Official Flagship'
+  };
+  const orderId = pendingOrder.id;
+
   // 15-minute countdown timer (default 10:45 = 645 seconds)
   const [secondsLeft, setSecondsLeft] = useState(645);
-  const [isApproved, setIsApproved] = useState(false);
-  const [isReleased, setIsReleased] = useState(false);
+  const [isApproved, setIsApproved] = useState(pendingOrder.status === 'placed');
+  const [isReleased, setIsReleased] = useState(pendingOrder.status === 'failed');
 
   useEffect(() => {
     if (secondsLeft <= 0 || isApproved || isReleased) return;
@@ -48,17 +60,17 @@ export default function Screen3_NeedsOK({
       colors: ['#1F4D3A', '#FFE9A8', '#34D399', '#FF6B5B']
     });
     if (onApproveOrder) {
-      onApproveOrder('CRN-88421');
+      onApproveOrder(orderId);
     }
     if (onShowToast) {
-      onShowToast("Order #CRN-88421 approved! Trust Receipt stamped and verified.");
+      onShowToast(`Order #${orderId} approved! Trust Receipt stamped and verified.`);
     }
   };
 
   const handleReject = () => {
     setIsReleased(true);
     if (onRejectOrder) {
-      onRejectOrder('CRN-88421');
+      onRejectOrder(orderId);
     }
     if (onShowToast) {
       onShowToast("Hold released gently. No funds were debited.");
@@ -96,11 +108,11 @@ export default function Screen3_NeedsOK({
             color: 'var(--ink)',
             marginBottom: '10px'
           }}>
-            Needs your OK, Priya.
+            Needs your OK, {userName}.
           </h1>
 
           <p style={{ fontSize: '18px', color: 'var(--ink-secondary)', maxWidth: '640px' }}>
-            This is above your usual <strong style={{ color: 'var(--ink)' }}>₹1,00,000</strong> autonomous threshold. Want me to go ahead with this order?
+            This is above your usual <strong style={{ color: 'var(--ink)' }}>₹{rules ? rules.approvalThreshold.toLocaleString('en-IN') : '1,00,000'}</strong> autonomous threshold. Want me to go ahead with this order?
           </p>
         </div>
 
@@ -344,7 +356,7 @@ export default function Screen3_NeedsOK({
                       {isApproved ? 'USER APPROVED' : 'NEEDS CONFIRMATION'}
                     </div>
                     <div className="stamp-desc">
-                      {isApproved ? 'Explicit authorization granted by Priya' : 'Exceeds auto threshold: ₹1,20,000 > ₹1,00,000 limit'}
+                      {isApproved ? `Explicit authorization granted by ${userName}` : `Exceeds auto threshold: ₹1,20,000 > ₹${rules ? rules.approvalThreshold.toLocaleString('en-IN') : '1,00,000'} limit`}
                     </div>
                   </div>
 
