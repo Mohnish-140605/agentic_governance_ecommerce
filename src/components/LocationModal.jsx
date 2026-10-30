@@ -148,6 +148,9 @@ export default function LocationModal({
         style={{
           width: '100%',
           maxWidth: '520px',
+          maxHeight: 'calc(100vh - 40px)',
+          display: 'flex',
+          flexDirection: 'column',
           backgroundColor: '#FFFFFF',
           borderRadius: '24px',
           boxShadow: 'var(--shadow-warm-float)',
@@ -202,8 +205,10 @@ export default function LocationModal({
           </button>
         </div>
 
-        {/* Current Location Badge */}
-        <div style={{ padding: '20px 28px 0' }}>
+        {/* Modal Scrollable Body */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {/* Current Location Badge */}
+          <div style={{ padding: '20px 28px 0' }}>
           <div style={{
             backgroundColor: 'var(--bg-cream-subtle)',
             borderRadius: '16px',
@@ -393,6 +398,8 @@ export default function LocationModal({
               })}
             </div>
           </div>
+        </div>
+
         </div>
 
         {/* Footer */}

@@ -143,7 +143,7 @@ export default function Screen3_NeedsOK({
         {/* Split Layout: Left Product / Right Trust Receipt */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
           gap: '36px',
           alignItems: 'start'
         }}>
@@ -399,7 +399,7 @@ export default function Screen3_NeedsOK({
                 gap: '14px'
               }}>
                 {!isApproved && !isReleased ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '12px' }}>
                     <button
                       className="pill-button-primary"
                       onClick={handleApprove}

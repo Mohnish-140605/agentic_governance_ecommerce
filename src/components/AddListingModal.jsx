@@ -121,7 +121,7 @@ export default function AddListingModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '24px 28px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: 'clamp(16px, 4vw, 24px) clamp(16px, 4vw, 28px)', flex: 1, overflowY: 'auto' }}>
           {isAuditing ? (
             <div style={{ padding: '20px 0', textAlign: 'center' }}>
               <Loader2 size={36} className="animate-spin" color="var(--forest-green)" style={{ margin: '0 auto 16px' }} />

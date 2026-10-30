@@ -273,7 +273,7 @@ export default function GoogleAuthModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: '24px 28px' }}>
+        <div style={{ padding: 'clamp(16px, 4vw, 24px) clamp(16px, 4vw, 28px)', flex: 1, overflowY: 'auto' }}>
           {/* Active Session Display */}
           {currentUser && (
             <div style={{

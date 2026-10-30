@@ -1,6 +1,5 @@
 export const CUSTOMER_NAV_SCREENS = [
   { id: 'explore', label: 'Explore', subtitle: 'Screen 1 · Quiet Catalog' },
-  { id: 'chat', label: 'Chat with Aria', subtitle: 'Screen 2 · Thoughtful Assistant' },
   { id: 'needs_ok', label: 'Needs my OK', subtitle: 'Screen 3 · Approval Hold', badgeKey: 'approvals' },
   { id: 'not_placed', label: 'Not Placed', subtitle: 'Screen 4 · Safeguards' },
   { id: 'orders', label: 'Orders', subtitle: 'Screen 5 · Trust Receipts' },

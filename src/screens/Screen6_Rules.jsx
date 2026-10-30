@@ -126,7 +126,7 @@ export default function Screen6_Rules({
         {/* 2-Column Split: Controls on Left / Live Rule Simulator on Right */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
           gap: '36px',
           alignItems: 'start'
         }}>
@@ -241,7 +241,7 @@ export default function Screen6_Rules({
               </p>
 
               {/* 3 Quick Preset Pills */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: '8px', marginBottom: '16px' }}>
                 {[
                   { label: '₹25,000 (Conservative)', value: 25000 },
                   { label: '₹1,00,000 (Balanced)', value: 100000 },
@@ -504,7 +504,7 @@ export default function Screen6_Rules({
                   VERIFICATION LEDGER
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: '8px' }}>
                   {/* Budget Stamp */}
                   <div style={{
                     backgroundColor: exceedsCap ? 'var(--coral-light)' : 'var(--forest-green-light)',

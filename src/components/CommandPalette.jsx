@@ -62,7 +62,7 @@ export default function CommandPalette({
       display: 'flex',
       alignItems: 'flex-start',
       justifyContent: 'center',
-      padding: '80px 20px 20px',
+      padding: 'clamp(20px, 8vh, 80px) 16px 20px',
       animation: 'fadeIn 0.2s ease'
     }} onClick={onClose}>
       <div 
@@ -121,7 +121,7 @@ export default function CommandPalette({
         </div>
 
         {/* Results List */}
-        <div style={{ maxHeight: '420px', overflowY: 'auto', padding: '16px 20px' }}>
+        <div style={{ flex: 1, maxHeight: 'calc(100vh - 160px)', overflowY: 'auto', padding: '16px clamp(12px, 3vw, 20px)' }}>
           {query.trim() && (
             <div style={{ marginBottom: '16px' }}>
               <button

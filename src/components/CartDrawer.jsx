@@ -23,13 +23,13 @@ export default function CartDrawer({
       <div 
         style={{
           width: '100%',
-          maxWidth: '440px',
+          maxWidth: 'min(440px, 100vw)',
           height: '100%',
           backgroundColor: '#FFFFFF',
           boxShadow: 'var(--shadow-warm-float)',
           display: 'flex',
           flexDirection: 'column',
-          padding: '28px'
+          padding: 'clamp(20px, 4vw, 28px)'
         }}
         onClick={(e) => e.stopPropagation()}
       >

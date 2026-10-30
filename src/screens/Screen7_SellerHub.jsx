@@ -63,7 +63,7 @@ export default function Screen7_SellerHub({
       <div style={{
         backgroundColor: 'var(--forest-green)',
         color: '#FFFFFF',
-        padding: '54px 24px 64px',
+        padding: 'clamp(36px, 5vw, 54px) clamp(16px, 4vw, 24px) clamp(40px, 6vw, 64px)',
         borderBottom: '1px solid var(--forest-green-hover)'
       }}>
         <div style={{
@@ -102,7 +102,7 @@ export default function Screen7_SellerHub({
           {/* Quick Metrics Cards */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
             gap: '12px'
           }}>
             <div style={{
@@ -166,7 +166,7 @@ export default function Screen7_SellerHub({
             {/* 3 Outcome Cards */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
               gap: '20px'
             }}>
               {sellerTrustOutcomes.map((item) => (

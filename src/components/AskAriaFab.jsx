@@ -2,13 +2,13 @@ import React from 'react';
 import { ChevronRight } from 'lucide-react';
 
 export default function AskAriaFab({ onOpenChat, activeScreen }) {
-  if (activeScreen === 'chat') return null;
+  if (activeScreen === 'chat' || activeScreen === 'explore') return null;
 
   return (
     <div style={{
       position: 'fixed',
-      bottom: '28px',
-      right: '28px',
+      bottom: 'clamp(16px, 3vw, 28px)',
+      right: 'clamp(16px, 3vw, 28px)',
       zIndex: 50,
       display: 'flex',
       alignItems: 'center'
@@ -22,7 +22,7 @@ export default function AskAriaFab({ onOpenChat, activeScreen }) {
           gap: '10px',
           backgroundColor: 'var(--forest-green)',
           color: '#FFFFFF',
-          padding: '14px 24px',
+          padding: 'clamp(10px, 2.5vw, 14px) clamp(16px, 3.5vw, 24px)',
           borderRadius: 'var(--radius-pill)',
           boxShadow: 'var(--shadow-warm-float)',
           border: '1.5px solid rgba(255, 255, 255, 0.15)',

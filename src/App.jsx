@@ -10,6 +10,10 @@ import LocationModal from './components/LocationModal';
 import AddListingModal from './components/AddListingModal';
 import SellerOrderView from './components/SellerOrderView';
 
+import LandingPage from './pages/LandingPage';
+import BuyerLoginPage from './pages/BuyerLoginPage';
+import MerchantLoginPage from './pages/MerchantLoginPage';
+
 import Screen1_Home from './screens/Screen1_Home';
 import Screen2_Chat from './screens/Screen2_Chat';
 import Screen3_NeedsOK from './screens/Screen3_NeedsOK';
@@ -23,13 +27,56 @@ import Screen9_HowAriaWorks from './screens/Screen9_HowAriaWorks';
 import { INITIAL_RULES, INITIAL_ORDERS, SELLER_LISTINGS } from './data/mockData';
 import { DEFAULT_USER, POPULAR_LOCATIONS } from './data/navigation';
 
+// ─── Session persistence helpers ────────────────────────────────────────────
+const SESSION_KEYS = {
+  buyer: 'cairn_buyer_session',
+  merchant: 'cairn_merchant_session',
+  appState: 'cairn_app_state'
+};
+
+function loadSession(role) {
+  try {
+    const raw = localStorage.getItem(SESSION_KEYS[role]);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(role, user) {
+  if (user) localStorage.setItem(SESSION_KEYS[role], JSON.stringify(user));
+  else localStorage.removeItem(SESSION_KEYS[role]);
+}
+
+function loadAppState() {
+  return localStorage.getItem(SESSION_KEYS.appState) || 'landing';
+}
+
+function saveAppState(state) {
+  localStorage.setItem(SESSION_KEYS.appState, state);
+}
+
+// ─── Determine initial app state from persisted sessions ───────────────────
+function resolveInitialState() {
+  const persisted = loadAppState();
+  // Validate that the persisted state still has a valid session
+  if (persisted === 'buyer_app' && loadSession('buyer')) return 'buyer_app';
+  if (persisted === 'merchant_app' && loadSession('merchant')) return 'merchant_app';
+  return 'landing';
+}
+
 export default function App() {
-  // Role & Dashboard Mode: 'customer' | 'seller'
-  const [dashboardMode, setDashboardMode] = useState(() => {
-    return localStorage.getItem('cairn_dashboard_mode') || 'customer';
+  // ── Top-level app flow state ────────────────────────────────────────────
+  // 'landing' | 'buyer_login' | 'merchant_login' | 'buyer_app' | 'merchant_app'
+  const [appState, setAppState] = useState(resolveInitialState);
+
+  // Role & Dashboard Mode derived from appState
+  const dashboardMode = appState === 'merchant_app' ? 'seller' : 'customer';
+
+  const [activeScreen, setActiveScreen] = useState(() => {
+    return appState === 'merchant_app' ? 'seller_hub' : 'explore';
   });
 
-  const [activeScreen, setActiveScreen] = useState('explore');
   const [rules, setRules] = useState(INITIAL_RULES);
   const [orders, setOrders] = useState(INITIAL_ORDERS);
   const [sellerListings, setSellerListings] = useState(SELLER_LISTINGS);
@@ -43,14 +90,11 @@ export default function App() {
   const [addListingModalOpen, setAddListingModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // Authenticated Google User
+  // ── Authenticated User (loaded from role-specific session) ─────────────
   const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('cairn_google_user');
-      return saved ? JSON.parse(saved) : DEFAULT_USER;
-    } catch {
-      return DEFAULT_USER;
-    }
+    if (appState === 'buyer_app') return loadSession('buyer') || DEFAULT_USER;
+    if (appState === 'merchant_app') return loadSession('merchant') || DEFAULT_USER;
+    return DEFAULT_USER;
   });
 
   // Live Location
@@ -63,7 +107,12 @@ export default function App() {
     }
   });
 
-  // Global keyboard shortcut for ⌘K
+  // ── Persist appState whenever it changes ───────────────────────────────
+  useEffect(() => {
+    saveAppState(appState);
+  }, [appState]);
+
+  // ── Global keyboard shortcut for ⌘K ───────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -75,41 +124,74 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Save dashboard mode preference
-  useEffect(() => {
-    localStorage.setItem('cairn_dashboard_mode', dashboardMode);
-  }, [dashboardMode]);
-
   const showToast = (msg) => {
     setToastMessage(msg);
   };
 
-  // Google Sign-In handler
-  const handleSignIn = (user) => {
-    setCurrentUser(user);
-    localStorage.setItem('cairn_google_user', JSON.stringify(user));
-    showToast(`Welcome, ${user.name}! Authenticated with Google.`);
+  // ── Navigation: landing → buyer or merchant login ──────────────────────
+  const handleSelectBuyer = () => setAppState('buyer_login');
+  const handleSelectMerchant = () => setAppState('merchant_login');
+  const handleBackToLanding = () => setAppState('landing');
 
-    // Adapt rule profile name
+  // ── Buyer sign-in handler ──────────────────────────────────────────────
+  const handleBuyerSignIn = (user) => {
+    const enriched = { ...user, role: 'buyer' };
+    setCurrentUser(enriched);
+    saveSession('buyer', enriched);
+    setAppState('buyer_app');
+    setActiveScreen('explore');
+    showToast(`Welcome, ${user.name}! You're now signed in as a Buyer.`);
     setRules((prev) => ({
       ...prev,
       activeProfile: `${user.name.split(' ')[0]}'s Calm Home`
     }));
   };
 
-  // Google Sign-Out handler
-  const handleSignOut = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('cairn_google_user');
-    showToast('Signed out of Google session.');
+  // ── Merchant sign-in handler ───────────────────────────────────────────
+  const handleMerchantSignIn = (user) => {
+    const enriched = { ...user, role: 'merchant' };
+    setCurrentUser(enriched);
+    saveSession('merchant', enriched);
+    setAppState('merchant_app');
+    setActiveScreen('seller_hub');
+    showToast(`Welcome, ${user.name}! You're now signed in as a Merchant.`);
   };
 
-  // Live location update handler
+  // ── Sign-out & return to landing ───────────────────────────────────────
+  const handleSignOut = () => {
+    const role = appState === 'merchant_app' ? 'merchant' : 'buyer';
+    saveSession(role, null);
+    // Also clear old key for backward compat
+    localStorage.removeItem('cairn_google_user');
+    setCurrentUser(null);
+    saveAppState('landing');
+    setAppState('landing');
+    showToast('Signed out successfully.');
+  };
+
+  // ── Switch role: go back to landing ────────────────────────────────────
+  const handleSwitchRole = () => {
+    saveAppState('landing');
+    setAppState('landing');
+  };
+
+  // ── In-app Google auth modal sign-in (for existing sessions) ───────────
+  const handleSignIn = (user) => {
+    const role = appState === 'merchant_app' ? 'merchant' : 'buyer';
+    const enriched = { ...user, role };
+    setCurrentUser(enriched);
+    saveSession(role, enriched);
+    showToast(`Welcome, ${user.name}! Authenticated with Google.`);
+    setRules((prev) => ({
+      ...prev,
+      activeProfile: `${user.name.split(' ')[0]}'s Calm Home`
+    }));
+  };
+
+  // ── Live location update handler ───────────────────────────────────────
   const handleUpdateLocation = (loc) => {
     setCurrentLocation(loc);
     localStorage.setItem('cairn_location', JSON.stringify(loc));
-
-    // Update active orders destination with live address
     setOrders((prev) =>
       prev.map((ord) => ({
         ...ord,
@@ -118,18 +200,18 @@ export default function App() {
     );
   };
 
-  // Seller adds new artisan product
+  // ── Seller adds new artisan product ───────────────────────────────────
   const handleAddListing = (listing) => {
     setSellerListings((prev) => [listing, ...prev]);
   };
 
-  // Quick navigation with prompt to Aria
+  // ── Quick navigation with prompt to Aria (now directly on Explore) ───
   const handleAskAria = (prompt) => {
     setChatPrompt(prompt);
-    setActiveScreen('chat');
+    setActiveScreen('explore');
   };
 
-  // Quick order from Picked For You
+  // ── Quick order from Picked For You ───────────────────────────────────
   const handleQuickOrder = (product) => {
     if (product.price > rules.approvalThreshold) {
       showToast(`Selected ${product.name}. This is above your ₹1,00,000 threshold and requires your explicit OK.`);
@@ -137,18 +219,25 @@ export default function App() {
     } else {
       showToast(`Aria is auditing rules for ${product.name}...`);
       setChatPrompt(`Please verify rules and place order for the ${product.name}`);
-      setActiveScreen('chat');
+      setActiveScreen('explore');
     }
   };
 
-  // Screen-role auto-synchronization: prevents blank screens under all circumstances
+  // ── Screen-role auto-synchronization ──────────────────────────────────
   const handleNavigateToScreen = (screenId) => {
     const isSeller = ['seller_hub', 'store_health', 'seller_orders'].includes(screenId);
-    setDashboardMode(isSeller ? 'seller' : 'customer');
-    setActiveScreen(screenId);
+    if (isSeller && appState === 'buyer_app') {
+      setAppState('merchant_app');
+      setActiveScreen(screenId);
+    } else if (!isSeller && appState === 'merchant_app') {
+      setAppState('buyer_app');
+      setActiveScreen(screenId);
+    } else {
+      setActiveScreen(screenId);
+    }
   };
 
-  // Approve an order
+  // ── Approve an order ──────────────────────────────────────────────────
   const handleApproveOrder = (orderId) => {
     setOrders((prev) =>
       prev.map((o) => {
@@ -171,7 +260,7 @@ export default function App() {
     );
   };
 
-  // Reject / release hold on order
+  // ── Reject / release hold on order ────────────────────────────────────
   const handleRejectOrder = (orderId) => {
     setOrders((prev) =>
       prev.map((o) => {
@@ -188,7 +277,7 @@ export default function App() {
     showToast(`Order #${orderId} hold released safely. Zero funds debited.`);
   };
 
-  // Raise limit from Screen 4
+  // ── Raise limit from Screen 4 ──────────────────────────────────────────
   const handleRaiseLimit = (newLimit) => {
     setRules((prev) => ({
       ...prev,
@@ -197,17 +286,62 @@ export default function App() {
     showToast(`Monthly spending cap updated to ₹${newLimit.toLocaleString('en-IN')}.`);
   };
 
-  // Count pending approvals
   const pendingApprovalsCount = orders.filter((o) => o.status === 'needs_ok').length;
 
+  // ════════════════════════════════════════════════════════════════════════
+  // RENDER: Pre-app screens (landing, login)
+  // ════════════════════════════════════════════════════════════════════════
+  if (appState === 'landing') {
+    return (
+      <>
+        <LandingPage
+          onSelectBuyer={handleSelectBuyer}
+          onSelectMerchant={handleSelectMerchant}
+        />
+        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      </>
+    );
+  }
+
+  if (appState === 'buyer_login') {
+    return (
+      <>
+        <BuyerLoginPage
+          onBack={handleBackToLanding}
+          onSignIn={handleBuyerSignIn}
+          onGuestContinue={handleBuyerSignIn}
+        />
+        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      </>
+    );
+  }
+
+  if (appState === 'merchant_login') {
+    return (
+      <>
+        <MerchantLoginPage
+          onBack={handleBackToLanding}
+          onSignIn={handleMerchantSignIn}
+        />
+        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      </>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // RENDER: Main app (buyer_app | merchant_app)
+  // ════════════════════════════════════════════════════════════════════════
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-cream)' }}>
-      {/* Primary Header with Role Isolation, Google Identity & Live Location */}
+      {/* Primary Header */}
       <Header
         activeScreen={activeScreen}
         setActiveScreen={handleNavigateToScreen}
         dashboardMode={dashboardMode}
-        setDashboardMode={setDashboardMode}
+        setDashboardMode={(mode) => {
+          if (mode === 'seller') { setAppState('merchant_app'); setActiveScreen('seller_hub'); }
+          else { setAppState('buyer_app'); setActiveScreen('explore'); }
+        }}
         currentUser={currentUser}
         currentLocation={currentLocation}
         onOpenSearch={() => setCommandPaletteOpen(true)}
@@ -215,11 +349,12 @@ export default function App() {
         onOpenGoogleAuth={() => setGoogleAuthOpen(true)}
         onOpenLocationModal={() => setLocationModalOpen(true)}
         onOpenAddListing={() => setAddListingModalOpen(true)}
+        onSwitchRole={handleSwitchRole}
         cartCount={pendingApprovalsCount}
         pendingApprovalsCount={pendingApprovalsCount}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <main style={{ flex: 1 }}>
         {/* CUSTOMER DASHBOARD VIEWS */}
         {dashboardMode === 'customer' && (
@@ -233,9 +368,15 @@ export default function App() {
                 currentUser={currentUser}
                 currentLocation={currentLocation}
                 rules={rules}
+                setRules={setRules}
+                orders={orders}
+                onApproveOrder={handleApproveOrder}
+                onRejectOrder={handleRejectOrder}
+                onAddOrder={(newOrder) => setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id)])}
+                chatPrompt={chatPrompt}
+                setChatPrompt={setChatPrompt}
               />
             )}
-
             {activeScreen === 'chat' && (
               <Screen2_Chat
                 onNavigateToScreen={handleNavigateToScreen}
@@ -246,7 +387,6 @@ export default function App() {
                 rules={rules}
               />
             )}
-
             {activeScreen === 'needs_ok' && (
               <Screen3_NeedsOK
                 orders={orders}
@@ -258,7 +398,6 @@ export default function App() {
                 rules={rules}
               />
             )}
-
             {activeScreen === 'not_placed' && (
               <Screen4_NotPlaced
                 onNavigateToScreen={handleNavigateToScreen}
@@ -269,7 +408,6 @@ export default function App() {
                 rules={rules}
               />
             )}
-
             {activeScreen === 'orders' && (
               <Screen5_Orders
                 orders={orders}
@@ -279,7 +417,6 @@ export default function App() {
                 currentLocation={currentLocation}
               />
             )}
-
             {activeScreen === 'rules' && (
               <Screen6_Rules
                 rules={rules}
@@ -287,7 +424,6 @@ export default function App() {
                 onShowToast={showToast}
               />
             )}
-
             {activeScreen === 'how_aria_works' && (
               <Screen9_HowAriaWorks
                 onNavigateToScreen={handleNavigateToScreen}
@@ -307,13 +443,11 @@ export default function App() {
                 onShowToast={showToast}
               />
             )}
-
             {activeScreen === 'store_health' && (
               <Screen8_StoreHealth
                 onShowToast={showToast}
               />
             )}
-
             {activeScreen === 'seller_orders' && (
               <SellerOrderView
                 orders={orders}
@@ -325,10 +459,13 @@ export default function App() {
         )}
       </main>
 
-      {/* Global Pinned Floating Action Button: Ask Aria (Customer mode only) */}
-      {dashboardMode === 'customer' && (
+      {/* Global Pinned Floating Action Button: Ask Aria (Customer mode only, hidden on explore & chat) */}
+      {dashboardMode === 'customer' && activeScreen !== 'explore' && activeScreen !== 'chat' && (
         <AskAriaFab
-          onOpenChat={() => handleNavigateToScreen('chat')}
+          onOpenChat={() => {
+            handleNavigateToScreen('explore');
+            setChatPrompt('What can I help you with today?');
+          }}
           activeScreen={activeScreen}
         />
       )}
@@ -342,7 +479,7 @@ export default function App() {
         onAskAriaWithPrompt={handleAskAria}
       />
 
-      {/* Google Sign-in Identity Modal */}
+      {/* Google Sign-in Identity Modal (in-app, for switching accounts) */}
       <GoogleAuthModal
         isOpen={googleAuthOpen}
         onClose={() => setGoogleAuthOpen(false)}
@@ -383,10 +520,13 @@ export default function App() {
       />
 
       {/* Reassurance Footer */}
-      <Footer 
-        onNavigateToScreen={handleNavigateToScreen} 
+      <Footer
+        onNavigateToScreen={handleNavigateToScreen}
         dashboardMode={dashboardMode}
-        setDashboardMode={setDashboardMode}
+        setDashboardMode={(mode) => {
+          if (mode === 'seller') { setAppState('merchant_app'); setActiveScreen('seller_hub'); }
+          else { setAppState('buyer_app'); setActiveScreen('explore'); }
+        }}
       />
     </div>
   );

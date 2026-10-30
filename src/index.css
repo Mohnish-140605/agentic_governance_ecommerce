@@ -66,7 +66,9 @@
 }
 
 /* Reset & Base */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -92,7 +94,10 @@ body {
 }
 
 /* Typography styles */
-h1, h2, h3, .font-serif {
+h1,
+h2,
+h3,
+.font-serif {
   font-family: var(--font-serif);
   font-weight: 500;
   letter-spacing: -0.025em;
@@ -115,7 +120,8 @@ h3 {
 }
 
 p {
-  font-size: 1.0625rem; /* 17px */
+  font-size: 1.0625rem;
+  /* 17px */
   color: var(--ink-secondary);
   line-height: 1.65;
 }
@@ -133,7 +139,8 @@ button {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-input, textarea {
+input,
+textarea {
   font-family: inherit;
   color: var(--ink);
 }
@@ -520,8 +527,25 @@ input, textarea {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-fade-in {
@@ -529,9 +553,17 @@ input, textarea {
 }
 
 @keyframes pulseGlow {
-  0% { box-shadow: 0 0 0 0 rgba(31, 77, 58, 0.2); }
-  70% { box-shadow: 0 0 0 10px rgba(31, 77, 58, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(31, 77, 58, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(31, 77, 58, 0.2);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(31, 77, 58, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(31, 77, 58, 0);
+  }
 }
 
 .pulse-badge {
@@ -556,3 +588,396 @@ input, textarea {
 ::-webkit-scrollbar-thumb:hover {
   background: #BDB4A4;
 }
+
+/* Responsive Design Improvements */
+@media (max-width: 1200px) {
+  :root {
+    --max-width: 100%;
+  }
+}
+
+@media (max-width: 1024px) {
+  h1 {
+    font-size: 2.5rem;
+  }
+
+  h2 {
+    font-size: 2rem;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+
+  .cairn-card {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .trust-receipt {
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  .trust-receipt-header {
+    padding: 16px 20px 12px;
+  }
+
+  .trust-receipt-details {
+    padding: 4px 20px 16px;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .trust-receipt-stamps-wrap {
+    padding: 14px 20px 20px;
+  }
+
+  .stamps-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+  }
+
+  .pill-button-primary,
+  .pill-button-secondary,
+  .pill-button-ghost {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+
+  .cairn-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .badge-placed,
+  .badge-review,
+  .badge-failed,
+  .badge-neutral {
+    padding: 3px 10px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+
+  .cairn-card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+}
+
+/* Mobile menu toggle visibility */
+@media (max-width: 768px) {
+  .mobile-menu-toggle {
+    display: block !important;
+  }
+}
+
+/* Search pill responsive adjustments */
+@media (max-width: 640px) {
+  .search-pill-container {
+    max-width: 200px;
+  }
+}
+
+/* Product grid responsive */
+@media (max-width: 640px) {
+  .product-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Hero section responsive */
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 32px 16px 24px;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* Ensure fluid layouts for zoom support */
+* {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Prevent overflow in flex containers */
+.flex-container {
+  min-width: 0;
+}
+
+/* Prevent overflow in grid containers */
+.grid-container {
+  min-width: 0;
+}
+
+/* Responsive typography for zoom support */
+@media (max-width: 1400px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 900px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 600px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+/* Skeleton loading animation */
+@keyframes skeletonPulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.skeleton-pulse {
+  animation: skeletonPulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth transitions for better UX */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Focus visible for accessibility */
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--forest-green);
+  outline-offset: 2px;
+}
+
+/* Smooth image loading */
+img {
+  transition: opacity 0.3s ease;
+}
+
+img[loading] {
+  opacity: 0;
+}
+
+img[loading='lazy'] {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+img[loading='lazy'].loaded {
+  opacity: 1;
+}
+
+/* Responsive login page layouts */
+@media (max-width: 768px) {
+  .buyer-left-panel {
+    display: none !important;
+  }
+  .buyer-login-container {
+    flex-direction: column !important;
+    min-height: 100vh;
+  }
+  .buyer-right-panel {
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    padding: 32px 20px !important;
+  }
+
+  .merchant-right-panel {
+    display: none !important;
+  }
+  .merchant-login-container {
+    flex-direction: column !important;
+    min-height: 100vh;
+  }
+  .merchant-left-panel {
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    padding: 32px 20px !important;
+  }
+
+  .auth-back-button {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    align-self: flex-start !important;
+    margin-bottom: 20px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .header-tagline-text {
+    display: none !important;
+  }
+  .merchant-id-badge {
+    display: none !important;
+  }
+}
+
+/* Agentic E-Commerce Autonomous Search Animations */
+@keyframes agentPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4), 0 0 16px rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0), 0 0 24px rgba(16, 185, 129, 0.35);
+  }
+}
+
+@keyframes agentRadarRing {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+}
+
+@keyframes agentScanBar {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes agentStepPop {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.agent-live-glow {
+  animation: agentPulseGlow 2s infinite ease-in-out;
+}
+
+.agent-radar-ring {
+  animation: agentRadarRing 1.8s infinite ease-in-out;
+}
+
+.agent-scan-shimmer {
+  background: linear-gradient(90deg, #10B981 0%, #34D399 25%, #6EE7B7 50%, #34D399 75%, #10B981 100%);
+  background-size: 200% 100%;
+  animation: agentScanBar 2s linear infinite;
+}
+
+.agent-step-appear {
+  animation: agentStepPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Responsive grid for agentic product results */
+.agent-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .agent-product-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .agent-live-glow,
+  .agent-radar-ring,
+  .agent-scan-shimmer,
+  .agent-step-appear,
+  .pulse-badge {
+    animation: none !important;
+  }
+}
+

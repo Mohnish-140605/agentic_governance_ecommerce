@@ -1,11 +1,12 @@
 import React from 'react';
 import CairnLogo from './CairnLogo';
 import { ShieldCheck, Store, ArrowLeft, BookOpen } from 'lucide-react';
+import { Button } from './ui';
 
-export default function Footer({ 
-  onNavigateToScreen, 
+export default function Footer({
+  onNavigateToScreen,
   dashboardMode = 'customer',
-  setDashboardMode 
+  setDashboardMode
 }) {
   return (
     <footer style={{
@@ -27,9 +28,9 @@ export default function Footer({
       }}>
         {/* Left: Cairn wordmark & tagline */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CairnLogo 
-            size="small" 
-            onClick={() => onNavigateToScreen(dashboardMode === 'customer' ? 'explore' : 'seller_hub')} 
+          <CairnLogo
+            size="small"
+            onClick={() => onNavigateToScreen(dashboardMode === 'customer' ? 'explore' : 'seller_hub')}
           />
           <span style={{ color: 'var(--ink-muted)' }}>·</span>
           <span>
@@ -46,100 +47,65 @@ export default function Footer({
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           {dashboardMode === 'customer' ? (
             <>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<BookOpen size={13} />}
+                iconPosition="left"
                 onClick={() => onNavigateToScreen('how_aria_works')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '12.5px',
-                  color: 'var(--ink-secondary)',
-                  cursor: 'pointer',
-                  background: 'none',
-                  border: 'none'
-                }}
               >
-                <BookOpen size={13} />
-                <span>How Aria Works</span>
-              </button>
+                How Aria Works
+              </Button>
 
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<ShieldCheck size={13} />}
+                iconPosition="left"
                 onClick={() => onNavigateToScreen('rules')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '12.5px',
-                  color: 'var(--ink-secondary)',
-                  cursor: 'pointer',
-                  background: 'none',
-                  border: 'none'
-                }}
               >
-                <ShieldCheck size={13} />
-                <span>My Safeguards</span>
-              </button>
+                My Safeguards
+              </Button>
 
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Store size={14} />}
+                iconPosition="left"
                 onClick={() => {
                   if (setDashboardMode) setDashboardMode('seller');
                   onNavigateToScreen('seller_hub');
                 }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  color: 'var(--forest-green)',
-                  cursor: 'pointer',
-                  background: 'none',
-                  border: 'none'
-                }}
+                style={{ color: 'var(--forest-green)', fontWeight: 600 }}
               >
-                <Store size={14} />
-                <span>Artisan Studio (Sell) →</span>
-              </button>
+                Artisan Studio (Sell) →
+              </Button>
             </>
           ) : (
             <>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<ShieldCheck size={14} />}
+                iconPosition="left"
                 onClick={() => onNavigateToScreen('store_health')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  color: 'var(--forest-green)',
-                  cursor: 'pointer',
-                  background: 'none',
-                  border: 'none'
-                }}
+                style={{ color: 'var(--forest-green)', fontWeight: 600 }}
               >
-                <ShieldCheck size={14} />
-                <span>Store Health & Audit</span>
-              </button>
+                Store Health & Audit
+              </Button>
 
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<ArrowLeft size={13} />}
+                iconPosition="left"
                 onClick={() => {
                   if (setDashboardMode) setDashboardMode('customer');
                   onNavigateToScreen('explore');
                 }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '12.5px',
-                  color: 'var(--ink-secondary)',
-                  cursor: 'pointer',
-                  background: 'none',
-                  border: 'none'
-                }}
               >
-                <ArrowLeft size={13} />
-                <span>Back to Customer Store</span>
-              </button>
+                Back to Customer Store
+              </Button>
             </>
           )}
         </div>

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import CairnLogo from './CairnLogo';
-import { 
-  Search, 
-  MapPin, 
-  ShoppingBag, 
-  Menu, 
+import {
+  Search,
+  MapPin,
+  ShoppingBag,
+  Menu,
   X,
   Sparkles,
   Store,
@@ -29,6 +29,7 @@ export default function Header({
   onOpenGoogleAuth,
   onOpenLocationModal,
   onOpenAddListing,
+  onSwitchRole,
   cartCount = 2,
   pendingApprovalsCount = 1
 }) {
@@ -48,15 +49,16 @@ export default function Header({
       borderBottom: '1px solid var(--border-cream)',
       transition: 'all 0.2s ease'
     }}>
-      {/* Top Primary Bar */}
+      {/* Main Header Row */}
       <div style={{
         maxWidth: 'var(--max-width)',
         margin: '0 auto',
-        padding: '12px 24px',
+        padding: '16px 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '16px'
+        gap: '16px',
+        flexWrap: 'wrap'
       }}>
         {/* Left: Logo & Role Isolation */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -106,12 +108,10 @@ export default function Header({
               </button>
             </div>
           ) : (
-            <span style={{
+            <span className="header-tagline-text" style={{
               fontSize: '12px',
               color: 'var(--ink-muted)',
               fontStyle: 'italic',
-              display: 'none',
-              '@media (min-width: 640px)': { display: 'inline' }
             }}>
               mindful shopping with Aria
             </span>
@@ -120,10 +120,11 @@ export default function Header({
 
         {/* Center: Search pill with shortcut ⌘K (Customer) or Merchant Quick Actions (Seller) */}
         {dashboardMode === 'customer' ? (
-          <div 
+          <div
             onClick={onOpenSearch}
             style={{
-              flex: '1',
+              flex: '1 1 auto',
+              minWidth: 0,
               maxWidth: '460px',
               backgroundColor: '#FFFFFF',
               border: '1px solid var(--border-cream)',
@@ -179,7 +180,7 @@ export default function Header({
               <PlusCircle size={15} />
               <span>+ Add Artisan Listing</span>
             </button>
-            <span style={{
+            <span className="merchant-id-badge" style={{
               fontSize: '11.5px',
               color: 'var(--ink-muted)',
               backgroundColor: '#FFFFFF',
@@ -195,7 +196,7 @@ export default function Header({
         {/* Right: Live Location, Google Auth, Cart */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* Interactive Live Location Pill */}
-          <button 
+          <button
             onClick={onOpenLocationModal}
             title="Click to calibrate GPS or switch delivery city"
             style={{
@@ -229,7 +230,7 @@ export default function Header({
 
           {/* Cart Icon (Customer View) */}
           {dashboardMode === 'customer' && (
-            <button 
+            <button
               onClick={onOpenCart}
               aria-label="View Cart"
               style={{
@@ -274,7 +275,7 @@ export default function Header({
           {/* Google Login / Authenticated User Pill */}
           {currentUser ? (
             <div style={{ position: 'relative' }}>
-              <button 
+              <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 style={{
                   display: 'flex',
@@ -295,9 +296,9 @@ export default function Header({
                   borderRadius: '50%',
                   overflow: 'hidden'
                 }}>
-                  <img 
-                    src={currentUser.avatar} 
-                    alt={currentUser.name} 
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={(e) => {
                       e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=1F4D3A&color=fff`;
@@ -327,136 +328,182 @@ export default function Header({
 
               {/* User Dropdown */}
               {userDropdownOpen && (
-                <div 
+                <div
                   className="animate-fade-in"
                   style={{
                     position: 'absolute',
-                    top: '42px',
+                    top: '48px',
                     right: 0,
-                    width: '230px',
+                    width: 'min(260px, calc(100vw - 48px))',
                     backgroundColor: '#FFFFFF',
                     borderRadius: '16px',
-                    border: '1px solid var(--border-cream)',
+                    border: '1.5px solid var(--border-cream)',
                     boxShadow: 'var(--shadow-warm-md)',
-                    padding: '8px',
+                    padding: '12px',
                     zIndex: 50
                   }}
                 >
-                  <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border-cream-subtle)' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-cream-subtle)', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)', marginBottom: '4px' }}>
                       {currentUser.name}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--ink-muted)', marginBottom: '6px' }}>
                       {currentUser.email}
                     </div>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#166534', fontWeight: 600, marginTop: '3px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#166534', fontWeight: 600 }}>
                       <GoogleLogo size={10} />
                       <span>Google Verified</span>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setActiveScreen('rules');
-                      setUserDropdownOpen(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px 10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '12.5px',
-                      color: 'var(--ink)',
-                      border: 'none',
-                      background: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      marginTop: '4px'
-                    }}
-                  >
-                    <User size={14} />
-                    <span>Safeguards & Profile</span>
-                  </button>
-
-                  {dashboardMode === 'customer' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <button
                       onClick={() => {
+                        setActiveScreen('rules');
                         setUserDropdownOpen(false);
-                        setDashboardMode('seller');
-                        setActiveScreen('seller_hub');
                       }}
                       style={{
                         width: '100%',
-                        padding: '8px 10px',
+                        padding: '12px 14px',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '12.5px',
-                        color: 'var(--forest-green)',
-                        fontWeight: 600,
+                        gap: '10px',
+                        fontSize: '13px',
+                        color: 'var(--ink)',
                         border: 'none',
                         background: 'none',
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         cursor: 'pointer',
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        transition: 'background 0.15s ease'
                       }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-cream-subtle)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
                     >
-                      <Store size={14} />
-                      <span>Merchant Studio (Seller)</span>
+                      <User size={15} />
+                      <span>Safeguards & Profile</span>
                     </button>
-                  ) : (
+
+                    {dashboardMode === 'customer' ? (
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setDashboardMode('seller');
+                          setActiveScreen('seller_hub');
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          fontSize: '13px',
+                          color: 'var(--forest-green)',
+                          fontWeight: 600,
+                          border: 'none',
+                          background: 'none',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--forest-green-light)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                      >
+                        <Store size={15} />
+                        <span>Merchant Studio (Seller)</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          setDashboardMode('customer');
+                          setActiveScreen('explore');
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          fontSize: '13px',
+                          color: 'var(--forest-green)',
+                          fontWeight: 600,
+                          border: 'none',
+                          background: 'none',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--forest-green-light)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                      >
+                        <Sparkles size={15} />
+                        <span>Return to Customer Store</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => {
                         setUserDropdownOpen(false);
-                        setDashboardMode('customer');
-                        setActiveScreen('explore');
+                        onOpenGoogleAuth();
                       }}
                       style={{
                         width: '100%',
-                        padding: '8px 10px',
+                        padding: '12px 14px',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '12.5px',
-                        color: 'var(--forest-green)',
-                        fontWeight: 600,
+                        gap: '10px',
+                        fontSize: '13px',
+                        color: 'var(--ink-secondary)',
                         border: 'none',
                         background: 'none',
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         cursor: 'pointer',
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        transition: 'background 0.15s ease'
                       }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-cream-subtle)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
                     >
-                      <Sparkles size={14} />
-                      <span>Return to Customer Store</span>
+                      <GoogleLogo size={15} />
+                      <span>Switch Google Account</span>
                     </button>
-                  )}
 
-                  <button
-                    onClick={() => {
-                      setUserDropdownOpen(false);
-                      onOpenGoogleAuth();
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px 10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '12.5px',
-                      color: 'var(--ink-secondary)',
-                      border: 'none',
-                      background: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <GoogleLogo size={14} />
-                    <span>Switch Google Account</span>
-                  </button>
+                    {onSwitchRole && (
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          onSwitchRole();
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          fontSize: '13px',
+                          color: '#B91C1C',
+                          fontWeight: 600,
+                          border: 'none',
+                          background: 'none',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          borderTop: '1px solid var(--border-cream-subtle)',
+                          marginTop: '8px',
+                          paddingTop: '14px',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                      >
+                        <ArrowLeft size={15} />
+                        <span>Switch Role / Sign Out</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -484,7 +531,7 @@ export default function Header({
           )}
 
           {/* Mobile Menu Toggle */}
-          <button 
+          <button
             className="mobile-menu-toggle"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             style={{

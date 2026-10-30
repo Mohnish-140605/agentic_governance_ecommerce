@@ -2,14 +2,166 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, 
   Send, 
-  Mic,
-  SlidersHorizontal,
-  Truck,
-  Lock
+  Mic, 
+  SlidersHorizontal, 
+  Truck, 
+  Lock,
+  Plus,
+  RotateCcw
 } from 'lucide-react';
 import TrustReceipt from '../components/TrustReceipt';
 
-let msgCounter = 100;
+let msgCounter = 200;
+
+function createInitialThread(prompt, userName) {
+  if (!prompt || !prompt.trim()) {
+    return [];
+  }
+
+  const lower = prompt.toLowerCase();
+  if (lower.includes('framework') || lower.includes('laptop 13')) {
+    return [
+      {
+        id: ++msgCounter,
+        sender: 'user',
+        name: userName,
+        time: 'Just now',
+        text: prompt
+      },
+      {
+        id: ++msgCounter,
+        sender: 'aria',
+        name: 'Aria',
+        time: 'Just now',
+        badge: 'Rule Checked',
+        text: 'Found the exact configuration: 16GB RAM, 512GB SSD, silent typing profile. Verified merchant, ₹94,990. Let me check your rules.'
+      },
+      {
+        id: ++msgCounter,
+        sender: 'system_card',
+        cardType: 'product',
+        item: {
+          name: 'Framework Laptop 13',
+          tag: 'CERTIFIED MODULE',
+          partner: 'DIRECT PARTNER DIRECT DELIVERY',
+          batch: 'Batch #FW-139',
+          specs: 'Matte anti-glare display, AMD Ryzen 7, swappable USB-C & HDMI modular chassis.',
+          price: 94990,
+          delivery: 'Thu, 24 Oct',
+          image: '/assets/framework_laptop.jpg'
+        }
+      },
+      {
+        id: ++msgCounter,
+        sender: 'aria',
+        name: 'Aria',
+        time: 'Just now',
+        text: `Everything clears your caps nicely. I've placed the order for you, ${userName}.`
+      },
+      {
+        id: ++msgCounter,
+        sender: 'system_card',
+        cardType: 'receipt',
+        receiptData: {
+          id: 'CRN-9842',
+          item: 'Framework 13',
+          price: 94990,
+          status: 'placed',
+          authorizedAt: 'Today, 10:43 AM',
+          paymentChannel: 'HDFC Priority ••4902',
+          sha256: '7f920eb18a24c559d81a942005a1'
+        }
+      }
+    ];
+  } else if (lower.includes('laptop') || lower.includes('60,000') || lower.includes('study')) {
+    return [
+      {
+        id: ++msgCounter,
+        sender: 'user',
+        name: userName,
+        time: 'Just now',
+        text: prompt
+      },
+      {
+        id: ++msgCounter,
+        sender: 'aria',
+        name: 'Aria',
+        time: 'Just now',
+        badge: 'Rule Checked',
+        text: `I found the ASUS ZenBook 14 OLED. Whisper-quiet fan profile, AMD Ryzen 5, 16GB RAM, and certified artisan vendor authenticity at ₹58,990 — strictly within your ₹60,000 personal limit.`
+      },
+      {
+        id: ++msgCounter,
+        sender: 'system_card',
+        cardType: 'product',
+        item: {
+          name: 'ASUS ZenBook 14 OLED (Whisper-Quiet)',
+          tag: 'VERIFIED QUIET HARDWARE',
+          partner: 'CERTIFIED ZERO-NOISE LABS',
+          batch: 'Batch #ZB-402',
+          specs: 'Whisper-quiet fan profile, 2.8K 90Hz OLED, 16GB LPDDR5, all-day battery life.',
+          price: 58990,
+          delivery: 'Wed, 23 Oct',
+          image: '/assets/framework_laptop.jpg'
+        }
+      }
+    ];
+  } else if (lower.includes('coffee') || lower.includes('bean') || lower.includes('restock')) {
+    return [
+      {
+        id: ++msgCounter,
+        sender: 'user',
+        name: userName,
+        time: 'Just now',
+        text: prompt
+      },
+      {
+        id: ++msgCounter,
+        sender: 'aria',
+        name: 'Aria',
+        time: 'Just now',
+        badge: 'Origin Verified',
+        text: `Restocking 2x 250g Blue Tokai Whole Bean Arabica (Dark Roast). Total is ₹1,120, well below your monthly pantry cap. Zero hidden surge fees applied.`
+      }
+    ];
+  } else if (lower.includes('linen') || lower.includes('sheet') || lower.includes('bed')) {
+    return [
+      {
+        id: ++msgCounter,
+        sender: 'user',
+        name: userName,
+        time: 'Just now',
+        text: prompt
+      },
+      {
+        id: ++msgCounter,
+        sender: 'aria',
+        name: 'Aria',
+        time: 'Just now',
+        badge: 'Rule Checked',
+        text: `Sourced 100% Organic Percale Linen Bedding set from certified handloom weavers in Jaipur (₹4,800). Within your living allowance and origin audited.`
+      }
+    ];
+  } else {
+    return [
+      {
+        id: ++msgCounter,
+        sender: 'user',
+        name: userName,
+        time: 'Just now',
+        text: prompt
+      },
+      {
+        id: ++msgCounter,
+        sender: 'aria',
+        name: 'Aria',
+        time: 'Just now',
+        badge: 'Rule Checked',
+        text: `I've audited your inquiry: "${prompt}". Everything is held strictly within your personal safeguards and monthly spending cap.`
+      }
+    ];
+  }
+}
 
 export default function Screen2_Chat({
   onNavigateToScreen,
@@ -22,60 +174,7 @@ export default function Screen2_Chat({
   const userName = currentUser ? currentUser.name.split(' ')[0] : 'Priya';
   const processedPromptRef = useRef(initialPrompt);
 
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'user',
-      name: userName,
-      time: '10:42 AM',
-      text: initialPrompt || 'Could you pick and order that Framework Laptop 13 we looked at?'
-    },
-    {
-      id: 2,
-      sender: 'aria',
-      name: 'Aria',
-      time: '10:42 AM',
-      badge: 'Rule Checked',
-      text: 'Found the exact configuration: 16GB RAM, 512GB SSD, silent typing profile. Verified merchant, ₹94,990. Let me check your rules.'
-    },
-    {
-      id: 3,
-      sender: 'system_card',
-      cardType: 'product',
-      item: {
-        name: 'Framework Laptop 13',
-        tag: 'CERTIFIED MODULE',
-        partner: 'DIRECT PARTNER DIRECT DELIVERY',
-        batch: 'Batch #FW-139',
-        specs: 'Matte anti-glare display, AMD Ryzen 7, swappable USB-C & HDMI modular chassis.',
-        price: 94990,
-        delivery: 'Thu, 24 Oct',
-        image: '/assets/framework_laptop.jpg'
-      }
-    },
-    {
-      id: 4,
-      sender: 'aria',
-      name: 'Aria',
-      time: '10:43 AM',
-      text: `Everything clears your caps nicely. I've placed the order for you, ${userName}.`
-    },
-    {
-      id: 5,
-      sender: 'system_card',
-      cardType: 'receipt',
-      receiptData: {
-        id: 'CRN-9842',
-        item: 'Framework 13',
-        price: 94990,
-        status: 'placed',
-        authorizedAt: 'Today, 10:43 AM',
-        paymentChannel: 'HDFC Priority ••4902',
-        sha256: '7f920eb18a24c559d81a942005a1'
-      }
-    }
-  ]);
-
+  const [messages, setMessages] = useState(() => createInitialThread(initialPrompt, userName));
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
@@ -104,7 +203,7 @@ export default function Screen2_Chat({
     // Simulate Aria's thoughtful, calm response
     setTimeout(() => {
       setIsTyping(false);
-      let replyText = `I've noted that for you, ${userName}. The order parameters remain strictly bound by your rules.`;
+      let replyText = `I've noted that for you, ${userName}. The parameters remain strictly bound by your personal rules.`;
       
       const lower = text.toLowerCase();
       if (lower.includes('calendar')) {
@@ -117,7 +216,7 @@ export default function Screen2_Chat({
       } else if (lower.includes('cancel')) {
         replyText = "Your 15-minute tranquility hold is active. With one tap, I can release this order back to inventory without any transaction fee.";
       } else if (lower.includes('laptop') || lower.includes('60,000') || lower.includes('study')) {
-        replyText = "I found the Asus ZenBook OLED and Acer Swift Go 14. Both feature whisper-quiet fans, 16GB RAM, and fall safely under your ₹60,000 limit with verified merchant authenticity.";
+        replyText = "I found the ASUS ZenBook 14 OLED and Acer Swift Go 14. Both feature whisper-quiet fans, 16GB RAM, and fall safely under your ₹60,000 limit with verified merchant authenticity.";
       } else if (lower.includes('coffee') || lower.includes('bean') || lower.includes('restock')) {
         replyText = "Restocking 2x 250g Blue Tokai Whole Bean Arabica (Dark Roast). Total is ₹1,120, well below your pantry allowance. Would you like me to mint the Trust Receipt?";
       } else if (lower.includes('linen') || lower.includes('sheet') || lower.includes('bed')) {
@@ -134,22 +233,217 @@ export default function Screen2_Chat({
       };
 
       setMessages((prev) => [...prev, ariaMsg]);
-    }, 900);
+    }, 850);
   }, [inputVal, userName, rules]);
 
-  // Trigger auto-send if a new prompt arrives from Screen 1 or Command Palette
+  // Handle new incoming prompt from Hero or Navigation
   useEffect(() => {
     if (initialPrompt && initialPrompt !== processedPromptRef.current) {
       processedPromptRef.current = initialPrompt;
-      handleSend(initialPrompt);
+      setMessages(createInitialThread(initialPrompt, userName));
     }
-  }, [initialPrompt, handleSend]);
+  }, [initialPrompt, userName]);
 
   const handleTrackOrder = () => {
     onNavigateToScreen('orders');
     if (onShowToast) onShowToast("Navigated to Order Tracking for Framework 13.");
   };
 
+  const handleLoadPastThread = () => {
+    setMessages(createInitialThread('Could you pick and order that Framework Laptop 13 we looked at?', userName));
+    if (onShowToast) onShowToast("Loaded past Framework 13 order thread.");
+  };
+
+  const handleStartNewInquiry = () => {
+    setMessages([]);
+    processedPromptRef.current = '';
+    setInputVal('');
+  };
+
+  // ════════════════════════════════════════════════════════════════════════
+  // RENDER: When thread is empty, show Copilot-style landing sequence (Image 2)
+  // ════════════════════════════════════════════════════════════════════════
+  if (messages.length === 0) {
+    return (
+      <div className="chat-screen-wrap animate-fade-in" style={{
+        minHeight: '75vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'clamp(24px, 5vw, 48px) clamp(16px, 3vw, 24px)',
+        textAlign: 'center',
+        maxWidth: 'var(--max-width)',
+        margin: '0 auto'
+      }}>
+        {/* Sparkle emblem */}
+        <div style={{
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          backgroundColor: 'var(--forest-green-light)',
+          color: 'var(--forest-green)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '20px',
+          boxShadow: 'var(--shadow-warm-sm)'
+        }}>
+          <Sparkles size={26} />
+        </div>
+
+        {/* Greeting Heading (Image 2 style) */}
+        <h1 style={{
+          fontFamily: 'var(--font-serif)',
+          fontSize: 'clamp(2.1rem, 4.8vw, 3.2rem)',
+          fontWeight: 500,
+          color: 'var(--ink)',
+          marginBottom: '32px',
+          letterSpacing: '-0.03em',
+          lineHeight: 1.15
+        }}>
+          Hi, what can I help you with?
+        </h1>
+
+        {/* Pill Message Input Bar (Image 2 style) */}
+        <div style={{ width: '100%', maxWidth: '680px', marginBottom: '24px' }}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 'var(--radius-pill)',
+              border: '1.5px solid var(--border-cream)',
+              boxShadow: 'var(--shadow-warm-md)',
+              padding: '8px 10px 8px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+            }}
+          >
+            <Plus size={18} color="var(--ink-muted)" />
+            <input
+              type="text"
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
+              placeholder="Message Aria..."
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                fontSize: '16px',
+                color: 'var(--ink)',
+                backgroundColor: 'transparent'
+              }}
+            />
+            <button
+              type="button"
+              style={{ padding: '8px', color: 'var(--ink-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+              title="Voice query"
+            >
+              <Mic size={19} />
+            </button>
+            <button
+              type="submit"
+              disabled={!inputVal.trim()}
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                backgroundColor: inputVal.trim() ? 'var(--forest-green)' : 'var(--bg-cream-subtle)',
+                color: inputVal.trim() ? '#FFFFFF' : 'var(--ink-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: 'none',
+                cursor: inputVal.trim() ? 'pointer' : 'default',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Send size={16} />
+            </button>
+          </form>
+        </div>
+
+        {/* Action / Category chips below input (Image 2 style) */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '10px',
+          justifyContent: 'center',
+          maxWidth: '680px',
+          marginBottom: '32px'
+        }}>
+          {[
+            { label: 'Explore', action: () => onNavigateToScreen('explore') },
+            { label: 'Shop laptops under ₹60k', prompt: 'Find me a quiet study laptop under ₹60,000' },
+            { label: 'Restock coffee beans', prompt: 'Restock roasted coffee beans' },
+            { label: 'Organic linen sheets', prompt: 'Linen sheets for guest room' },
+            { label: 'My Safeguards', action: () => onNavigateToScreen('rules') }
+          ].map((chip, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                if (chip.action) chip.action();
+                else if (chip.prompt) handleSend(chip.prompt);
+              }}
+              style={{
+                backgroundColor: '#FFFFFF',
+                border: '1px solid var(--border-cream)',
+                borderRadius: 'var(--radius-pill)',
+                padding: '9px 18px',
+                fontSize: '13.5px',
+                fontWeight: 500,
+                color: 'var(--ink)',
+                cursor: 'pointer',
+                boxShadow: 'var(--shadow-warm-sm)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--bg-cream-subtle)';
+                e.currentTarget.style.borderColor = 'var(--forest-green-border)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#FFFFFF';
+                e.currentTarget.style.borderColor = 'var(--border-cream)';
+              }}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
+        {/* View Previous Conversation Thread */}
+        <button
+          onClick={handleLoadPastThread}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '13px',
+            color: 'var(--forest-green)',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 14px',
+            borderRadius: 'var(--radius-pill)'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--forest-green-light)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        >
+          <span>📜 View past conversation & verified receipt (Framework 13)</span>
+        </button>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // RENDER: Active Conversation Canvas
+  // ════════════════════════════════════════════════════════════════════════
   return (
     <div className="chat-screen-wrap animate-fade-in" style={{ paddingBottom: '90px' }}>
       {/* Top Context Thread Banner */}
@@ -166,12 +460,14 @@ export default function Screen2_Chat({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px',
           boxShadow: 'var(--shadow-warm-sm)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981' }} />
             <span>ARIA MINDFUL AGENT</span>
-            <span style={{ color: 'var(--ink-muted)', fontWeight: 400 }}>· Hardware Curation Thread</span>
+            <span style={{ color: 'var(--ink-muted)', fontWeight: 400 }}>· Active Thread</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -187,10 +483,32 @@ export default function Screen2_Chat({
             }}>
               AUTONOMOUS EXECUTION ACTIVE
             </span>
+
+            <button
+              onClick={handleStartNewInquiry}
+              title="Start a new inquiry"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: 'var(--ink-secondary)',
+                backgroundColor: 'var(--bg-cream-subtle)',
+                border: '1px solid var(--border-cream)',
+                borderRadius: 'var(--radius-pill)',
+                cursor: 'pointer'
+              }}
+            >
+              <RotateCcw size={12} />
+              <span>New</span>
+            </button>
+
             <button 
               onClick={() => onNavigateToScreen('rules')}
               title="View active spending rules"
-              style={{ padding: '4px', color: 'var(--ink-secondary)' }}
+              style={{ padding: '4px', color: 'var(--ink-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
             >
               <SlidersHorizontal size={15} />
             </button>
@@ -287,7 +605,7 @@ export default function Screen2_Chat({
                   padding: '20px',
                   boxShadow: 'var(--shadow-warm-md)',
                   display: 'grid',
-                  gridTemplateColumns: '220px 1fr',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
                   gap: '20px',
                   alignItems: 'center'
                 }} className="chat-product-card">
@@ -322,7 +640,7 @@ export default function Screen2_Chat({
 
                   {/* Details */}
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: 'var(--forest-green)' }}>
                         {item.partner}
                       </span>
@@ -341,6 +659,8 @@ export default function Screen2_Chat({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '8px',
                       paddingTop: '10px',
                       borderTop: '1px solid var(--border-cream-subtle)'
                     }}>
@@ -464,7 +784,7 @@ export default function Screen2_Chat({
         backgroundColor: 'rgba(251, 247, 240, 0.95)',
         backdropFilter: 'blur(10px)',
         borderTop: '1px solid var(--border-cream)',
-        padding: '12px 20px 18px'
+        padding: '10px clamp(12px, 3vw, 20px) clamp(12px, 2vh, 18px)'
       }}>
         <div style={{ maxWidth: '820px', margin: '0 auto' }}>
           <form 
@@ -477,7 +797,7 @@ export default function Screen2_Chat({
               borderRadius: 'var(--radius-pill)',
               border: '1.5px solid var(--border-cream)',
               boxShadow: 'var(--shadow-warm-md)',
-              padding: '6px 8px 6px 18px',
+              padding: '6px 8px 6px clamp(12px, 3vw, 18px)',
               display: 'flex',
               alignItems: 'center',
               gap: '10px'
@@ -499,7 +819,7 @@ export default function Screen2_Chat({
             />
             <button
               type="button"
-              style={{ padding: '8px', color: 'var(--ink-muted)' }}
+              style={{ padding: '8px', color: 'var(--ink-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
               title="Voice query"
             >
               <Mic size={18} />
@@ -516,6 +836,7 @@ export default function Screen2_Chat({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                border: 'none',
                 cursor: inputVal.trim() ? 'pointer' : 'default',
                 transition: 'all 0.2s ease'
               }}
