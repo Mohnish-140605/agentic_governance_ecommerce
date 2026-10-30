@@ -18,9 +18,133 @@
 [![License](https://img.shields.io/badge/License-MIT-emerald?style=flat)](LICENSE)
 [![Zero Dark Patterns](https://img.shields.io/badge/UX-Zero_Dark_Patterns-2D5A27?style=flat)](https://github.com/Mohnish-140605/agentic_governance_ecommerce)
 
-[Explore Features](#key-features) • [Architecture](#architecture--governance-pipeline) • [Getting Started](#getting-started) • [How Aria Works](#how-aria-works) • [Seller Hub](#seller-hub--store-health)
+[Visual Tour & Screenshots](#-visual-showcase--functional-architecture-tour) • [Explore Features](#key-features) • [Architecture](#architecture--governance-pipeline) • [Getting Started](#getting-started) • [How Aria Works](#how-aria-works) • [Seller Hub](#seller-hub--store-health)
 
 </div>
+
+---
+
+## 📸 Visual Showcase & Functional Architecture Tour
+
+Explore the two-sided agentic commerce ecosystem in action. Cairn enforces strict, deterministic governance across both the **Buyer Experience** (where autonomous shopping agent Aria serves consumer intent within client-signed rules) and the **Merchant Experience** (where artisan makers manage inventory, smart escrow, and anti-arbitrage catalog integrity).
+
+---
+
+### 🛍️ Part 1: Buyer-Side Experience (Aria & Mindful Commerce)
+
+#### 1. Explore & Natural-Language Intent Hero ("Ask Aria")
+![Explore Screen & Natural-Language Intent Hero](screenshot_of_app/Screenshot%202026-10-30%20084938.png)
+- **Screen**: `Screen1_Home.jsx` (Customer Explore)
+- **Core Functionality**: The primary conversational shopping entry point. Shoppers can state their intent in natural language (voice or text), e.g., *"Find me a quiet study laptop under ₹60,000"*, *"Linen sheets for guest room"*, or trigger academic governance test scenarios (`Auto-Execute`, `Needs OK`, `Block Policy`).
+- **Governance Role**: Aria acts strictly as an **intent parser**, quarantined from direct financial tools. The hero integrates live hyper-local micro-hub delivery estimates and active governance safeguards.
+
+#### 2. Intent-Led Curations ("Picked for You")
+![Intent-Led Curations](screenshot_of_app/Screenshot%202026-10-29%20003731.png)
+- **Screen**: `Screen1_Home.jsx` (Curated Picks)
+- **Core Functionality**: Dynamic product discovery pre-filtered against the shopper's hardware longevity rules and weekly pantry allowances. Displays authentic artisan products with explicit match rationales and pre-audited budget badges.
+- **Zero Dark Patterns**: No algorithmic auctions, no sponsored priority tags, and no artificial urgency countdowns.
+
+#### 3. High-Value Order Verification Holding Buffer ("Needs my OK")
+![Needs my OK Screen](screenshot_of_app/Screenshot%202026-10-30%20084953.png)
+- **Screen**: `Screen3_NeedsOK.jsx`
+- **Core Functionality**: When a purchase proposal exceeds the shopper's autonomous auto-execution limit (e.g., Dell XPS 13 Plus at ₹1,20,000 > ₹1,00,000 threshold), the transaction is suspended in a safe 15-minute peace-of-mind buffer.
+- **Governance Role**: Requires explicit human authorization before payment execution. Displays full hardware specifications, order intent metadata, and the 3-stamp pre-execution verification ledger (Budget Approved, Needs Confirmation, Authentic Flagship OEM). Shoppers can authorize or cancel with one tap.
+
+#### 4. Deterministic Spending Ceiling Guardrail ("Not Placed")
+![Not Placed Guardrail Screen](screenshot_of_app/Screenshot%202026-10-30%20085002.png)
+- **Screen**: `Screen4_NotPlaced.jsx`
+- **Core Functionality**: Enforces absolute budget ceilings. When an order proposal violates the monthly spending cap (e.g., MacBook Air M2 at ₹75,000 > ₹50,000 cap), the transaction is paused pre-emptively with **zero funds debited**.
+- **Transparency & Remediation**: Shows the exact limit delta (+₹25,000 overrun prevented), explains the triggered rule, and presents zero-sacrifice within-budget alternatives curated for the shopper.
+
+#### 5. Deterministic Acquisition Sanctuary & Cryptographic Ledger ("Orders")
+![Order Sanctuary & Trust Receipts](screenshot_of_app/Screenshot%202026-10-30%20085011.png)
+- **Screen**: `Screen5_Orders.jsx`
+- **Core Functionality**: Comprehensive order management ledger categorizing acquisitions into *All*, *Needs my OK*, *Placed*, and *Not Placed*.
+- **Governance Role**: Every placed order features a live status badge, settlement confirmation, and a link to view the complete immutable **Trust Receipt** backed by client-verifiable SHA-256 cryptographic digests.
+
+#### 6. Personal Safeguards & Live Rule Simulator ("My Rules")
+![Personal Safeguards & Live Rule Simulator](screenshot_of_app/Screenshot%202026-10-30%20085027.png)
+- **Screen**: `Screen6_Rules.jsx`
+- **Core Functionality**: Shopper-controlled deterministic guardrail configuration center:
+  - **Guardrail 01**: Monthly Spending Cap slider (₹10,000 to ₹2,00,000) with real-time headroom calculation.
+  - **Guardrail 02**: Autonomous Single-Purchase Threshold presets (Conservative ₹25k, Balanced ₹100k, Relaxed ₹150k).
+  - **Guardrail 03**: 15-minute Tranquility Window toggle.
+- **Interactive Sandbox**: Features a real-time **Live Rule Simulator** to test hypothetical purchases across Scenarios A, B, and C against client-signed code contracts.
+
+#### 7. Governance Architecture & Trust Explainer ("How Aria Works")
+![How Cairn Keeps You Safe](screenshot_of_app/Screenshot%202026-10-30%20085037.png)
+- **Screen**: `Screen9_HowAriaWorks.jsx`
+- **Core Functionality**: Interactive educational and technical audit walkthrough demonstrating how Cairn safeguards shoppers through 4 deterministic phases:
+  1. *You Express Intent* (Natural language parsing)
+  2. *Aria Audits Your Rules* (Deterministic rule evaluation)
+  3. *The Trust Receipt is Minted* (3-stamp immutable verification)
+  4. *15-Minute Tranquility Hold* (Cancellation safety window)
+- **Dual Mode**: Toggle between *Simple Narrative Mode* for consumers and *Deep Architecture Audit* for engineers.
+
+#### 8. Active Curation Bag & Zero-Overrun Drawer
+![Active Curation Bag](screenshot_of_app/Screenshot%202026-10-30%20085050.png)
+- **Component**: `CartDrawer.jsx`
+- **Core Functionality**: Slide-out cart drawer displaying live item statuses (Hold Active, Settled, Paused). Enforces the zero-overrun guarantee and transparent price breakdowns with zero hidden fees. Includes identity management and quick role switching.
+
+#### 9. Live Micro-Hub Delivery Calibration
+![Live Delivery Location Modal](screenshot_of_app/Screenshot%202026-10-30%20085103.png)
+- **Component**: `LocationModal.jsx`
+- **Core Functionality**: Calibrates artisan proximity and enables hyper-local 15-minute micro-hub dispatch across verified fulfillment nodes (Bengaluru, New Delhi, Mumbai, Hyderabad, San Francisco, London) using simulated satellite lock or manual area selection.
+
+#### 10. Buyer Portal Sign-In & Onboarding
+![Buyer Portal Welcome](screenshot_of_app/Screenshot%202026-10-29%20013147.png)
+- **Screen**: `BuyerLoginPage.jsx`
+- **Core Functionality**: Dedicated consumer authentication portal with Google OAuth 2.0 PKCE, instant 1-click Demo Account, or Guest exploration, maintaining isolated buyer session state.
+
+---
+
+### 🏪 Part 2: Merchant-Side Experience (Artisan Studio & Escrow Vault)
+
+#### 11. Role Selection Gateway
+![Role Selection Gateway](screenshot_of_app/Screenshot%202026-10-30%20085112.png)
+- **Screen**: `LandingPage.jsx`
+- **Core Functionality**: Central platform gateway enforcing clean architectural separation between consumer shopping (*Shop as Buyer*) and artisan business administration (*Sell as Merchant*).
+
+#### 12. Merchant Studio Authentication
+![Merchant Studio Sign-In](screenshot_of_app/Screenshot%202026-10-30%20085121.png)
+- **Screen**: `MerchantLoginPage.jsx`
+- **Core Functionality**: Secure Google Workspace OAuth 2.0 gateway for independent makers and verified craft studios, highlighting network metrics (2,400+ active makers, ₹84K average monthly revenue, 18K+ verified artisan products).
+
+#### 13. Seller Integrity Hub & Anti-Arbitrage Engine
+![Seller Integrity Hub](screenshot_of_app/Screenshot%202026-10-30%20085143.png)
+- **Screen**: `Screen7_SellerHub.jsx`
+- **Core Functionality**: Maker sanctuary operating with zero advertising auctions and 0.00% chargeback rates. Demonstrates the **Catalog Enforcement Engine**'s three deterministic verification outcomes:
+  - 🟢 **Approved & Published**: Authentic OEM partner credentials verified with zero intermediary markups.
+  - 🔴 **Rejected · Ownership Conflict**: Dropshipping arbitrage and duplicate listings blocked automatically.
+  - 🟡 **Needs Human Review**: Dynamic surge pricing (+18% above 30-day baseline) flagged for manual escrow review.
+
+#### 14. Verified Artisan Inventory Management
+![Verified Artisan Inventory](screenshot_of_app/Screenshot%202026-10-30%20085155.png)
+- **Screen**: `Screen7_SellerHub.jsx` (Inventory Table)
+- **Core Functionality**: Live stock ledger tracking SKU batches, real-time stock units, base pricing, Cairn Audit status (Verified & Active vs. Restock Scheduled), and direct links to cryptographic ledger proofs.
+
+#### 15. Store Health & Telemetry Scoring Sanctuary
+![Store Health & Telemetry](screenshot_of_app/Screenshot%202026-10-30%20085206.png)
+- **Screen**: `Screen8_StoreHealth.jsx`
+- **Core Functionality**: Evaluates merchant operations across the Three Pillars of Store Health:
+  - **Authority (99.8%)**: 100% compliance with delegated buyer caps; zero hallucination rate; unauthorized prompt injection halts.
+  - **Routing (100%)**: Direct-from-source manufacturer verification; 0 unverified dropshipping nodes.
+  - **Traceability (100%)**: 100% valid SHA-256 receipt integrity audits and 15-minute tranquility cancellation honoring.
+- **Audit Log**: Live stream of recent pre-execution audit checks synced with AES-256 enclaves.
+
+#### 16. Buyer Orders & Smart Escrow Vault
+![Buyer Orders & Escrow Vault](screenshot_of_app/Screenshot%202026-10-30%20085216.png)
+- **Screen**: `SellerOrderView.jsx`
+- **Core Functionality**: Manages incoming buyer orders locked in smart escrow (e.g., ₹21,550 in vault with 0.00% chargebacks).
+- **Fulfillment States**:
+  - *In Tranquility Window*: Active 15-minute cancellation window with live timer.
+  - *Ready for Dispatch*: Escrow released, enables 1-click **"Dispatch Now"** courier handover.
+  - *Settled to Bank*: Direct ledger settlement into merchant HDFC bank account.
+
+#### 17. Publish Artisan Listing Modal
+![Publish Artisan Listing Modal](screenshot_of_app/Screenshot%202026-10-30%20085226.png)
+- **Component**: `AddListingModal.jsx`
+- **Core Functionality**: Verified submission form allowing artisans to enter product titles, craft materials, studio identity, fair MSRP pricing, and available units before running the Cairn origin & escrow verification engine.
 
 ---
 
