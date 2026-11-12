@@ -1441,6 +1441,28 @@ export default function Screen1_Home({
                               </td>
                             ))}
                           </tr>
+                          <tr style={{ borderBottom: '1px solid var(--border-cream-subtle)' }}>
+                            <td style={{ padding: '8px 10px', color: 'var(--ink-muted)', fontWeight: 600 }}>Conflict Detection</td>
+                            {agentActionData.matchedProducts.map((p) => {
+                              const isOverCap = p.price > monthlyCap;
+                              const isOverThresh = p.price > approvalThreshold;
+                              return (
+                                <td key={p.id} style={{ padding: '8px 10px' }}>
+                                  <span style={{
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    color: isOverCap ? '#B91C1C' : isOverThresh ? '#B45309' : '#166534'
+                                  }}>
+                                    {isOverCap 
+                                      ? `⚠️ Cap Breach (+₹${(p.price - monthlyCap).toLocaleString('en-IN')})` 
+                                      : isOverThresh 
+                                        ? '⚖️ Value Delta Hold' 
+                                        : '✓ Aligned (0 Conflict)'}
+                                  </span>
+                                </td>
+                              );
+                            })}
+                          </tr>
                           <tr>
                             <td style={{ padding: '8px 10px', color: 'var(--ink-muted)', fontWeight: 600 }}>Governance Status</td>
                             {agentActionData.matchedProducts.map((p) => {
@@ -1560,6 +1582,36 @@ export default function Screen1_Home({
                               }}>
                                 <strong style={{ color: 'var(--forest-green)' }}>Why Aria picked this:</strong> {prod.rationale}
                               </div>
+
+                              {/* Buyer-Merchant Conflict & Governance Callout */}
+                              {isOverCap && (
+                                <div style={{
+                                  backgroundColor: '#FEF2F2',
+                                  border: '1px solid #FECACA',
+                                  borderRadius: '8px',
+                                  padding: '8px 10px',
+                                  fontSize: '11.5px',
+                                  color: '#991B1B',
+                                  marginBottom: '12px',
+                                  lineHeight: 1.4
+                                }}>
+                                  <strong>⚠️ Buyer–Merchant Conflict:</strong> Price breaches monthly ceiling by ₹{(prod.price - monthlyCap).toLocaleString('en-IN')}. Pre-execution block enforced.
+                                </div>
+                              )}
+                              {isOverThresh && (
+                                <div style={{
+                                  backgroundColor: '#FFFBEB',
+                                  border: '1px solid #FDE68A',
+                                  borderRadius: '8px',
+                                  padding: '8px 10px',
+                                  fontSize: '11.5px',
+                                  color: '#92400E',
+                                  marginBottom: '12px',
+                                  lineHeight: 1.4
+                                }}>
+                                  <strong>⚖️ Governance Notice:</strong> Price exceeds ₹{approvalThreshold.toLocaleString('en-IN')} threshold. Suspended on a 15-minute Tranquility hold for your explicit approval.
+                                </div>
+                              )}
                             </div>
 
                             {/* Price & Action Row */}
