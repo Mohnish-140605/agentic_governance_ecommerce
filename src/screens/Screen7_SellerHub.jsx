@@ -8,6 +8,7 @@ import MerchantIntelligence from '../components/merchant/MerchantIntelligence';
 import TopProducts from '../components/merchant/TopProducts';
 import GovernanceOverview from '../components/merchant/GovernanceOverview';
 import SLAOverview from '../components/merchant/SLAOverview';
+import MerchantPlaceholderScreen from './MerchantPlaceholderScreen';
 import { SELLER_LISTINGS, INITIAL_ORDERS } from '../data/mockData';
 
 export default function Screen7_SellerHub({
@@ -28,15 +29,7 @@ export default function Screen7_SellerHub({
   const handleNavigate = (screenId) => {
     setActiveNavItem(screenId);
     setMobileMenuOpen(false);
-    if (screenId === 'orders') {
-      onShowToast?.('Navigating to orders...');
-    } else if (screenId === 'products' || screenId === 'inventory') {
-      onShowToast?.('Viewing products...');
-    } else if (screenId === 'governance') {
-      onShowToast?.('Opening governance dashboard...');
-    } else if (screenId === 'sla') {
-      onShowToast?.('Opening SLA management...');
-    }
+    // Navigation is handled by conditional rendering below
   };
 
   const handleViewOrder = (order) => {
@@ -103,6 +96,7 @@ export default function Screen7_SellerHub({
           merchantAvatar={merchantAvatar}
           onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           onProfileClick={() => onShowToast?.('Opening profile settings...')}
+          onNotificationsClick={() => onShowToast?.('Opening notifications...')}
           notifications={3}
         />
 
@@ -112,59 +106,66 @@ export default function Screen7_SellerHub({
           padding: '24px',
           overflowY: 'auto'
         }}>
-          <div style={{
-            maxWidth: '1400px',
-            margin: '0 auto'
-          }}>
-            {/* KPI Cards */}
-            <KPICards />
-
-            {/* Main Grid: Analytics + Transactions */}
-            <div className="dashboard-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))',
-              gap: '24px',
-              marginBottom: '32px'
+          {activeNavItem === 'overview' || activeNavItem === 'seller_hub' ? (
+            <div style={{
+              maxWidth: '1400px',
+              margin: '0 auto'
             }}>
-              {/* Sales Analytics */}
-              <SalesAnalytics />
+              {/* KPI Cards */}
+              <KPICards />
 
-              {/* Recent Transactions */}
-              <TransactionsTable
-                orders={orders}
-                onViewOrder={handleViewOrder}
+              {/* Main Grid: Analytics + Transactions */}
+              <div className="dashboard-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))',
+                gap: '24px',
+                marginBottom: '32px'
+              }}>
+                {/* Sales Analytics */}
+                <SalesAnalytics />
+
+                {/* Recent Transactions */}
+                <TransactionsTable
+                  orders={orders}
+                  onViewOrder={handleViewOrder}
+                />
+              </div>
+
+              {/* Merchant Intelligence */}
+              <MerchantIntelligence
+                onViewInsights={handleViewInsights}
               />
-            </div>
 
-            {/* Merchant Intelligence */}
-            <MerchantIntelligence
-              onViewInsights={handleViewInsights}
+              {/* Bottom Grid: Top Products + Governance + SLA */}
+              <div className="dashboard-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))',
+                gap: '24px',
+                marginTop: '32px'
+              }}>
+                {/* Top Products */}
+                <TopProducts
+                  products={null}
+                  onViewAll={handleViewAllProducts}
+                />
+
+                {/* Governance Overview */}
+                <GovernanceOverview
+                  onViewAll={handleViewAllGovernance}
+                />
+
+                {/* SLA Overview */}
+                <SLAOverview
+                  onViewAll={handleViewAllSLA}
+                />
+              </div>
+            </div>
+          ) : (
+            <MerchantPlaceholderScreen
+              screenId={activeNavItem}
+              onBack={() => setActiveNavItem('overview')}
             />
-
-            {/* Bottom Grid: Top Products + Governance + SLA */}
-            <div className="dashboard-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))',
-              gap: '24px',
-              marginTop: '32px'
-            }}>
-              {/* Top Products */}
-              <TopProducts
-                products={null}
-                onViewAll={handleViewAllProducts}
-              />
-
-              {/* Governance Overview */}
-              <GovernanceOverview
-                onViewAll={handleViewAllGovernance}
-              />
-
-              {/* SLA Overview */}
-              <SLAOverview
-                onViewAll={handleViewAllSLA}
-              />
-            </div>
-          </div>
+          )}
         </main>
       </div>
 

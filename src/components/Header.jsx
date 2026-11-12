@@ -12,7 +12,9 @@ import {
   PlusCircle,
   ChevronDown,
   ArrowLeft,
-  Briefcase
+  Briefcase,
+  Mic,
+  Camera
 } from 'lucide-react';
 import { CUSTOMER_NAV_SCREENS, SELLER_NAV_SCREENS, formatFirstName } from '../data/navigation';
 import { GoogleLogo } from './GoogleAuthModal';
@@ -134,21 +136,27 @@ export default function Header({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)', fontSize: '13.5px' }}>
               <Search size={15} color="var(--ink-muted)" />
               <span style={{ color: 'var(--ink-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                Search catalog
+                Search or ask Aria...
               </span>
             </div>
-            <kbd style={{
-              fontFamily: 'inherit',
-              fontSize: '10.5px',
-              fontWeight: 600,
-              color: 'var(--ink-muted)',
-              backgroundColor: 'var(--bg-cream-subtle)',
-              padding: '2px 6px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-cream)'
-            }}>
-              ⌘K
-            </kbd>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span title="Voice & visual search ready" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--ink-muted)' }}>
+                <Camera size={14} />
+                <Mic size={14} />
+              </span>
+              <kbd style={{
+                fontFamily: 'inherit',
+                fontSize: '10.5px',
+                fontWeight: 600,
+                color: 'var(--ink-muted)',
+                backgroundColor: 'var(--bg-cream-subtle)',
+                padding: '2px 6px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-cream)'
+              }}>
+                ⌘K
+              </kbd>
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

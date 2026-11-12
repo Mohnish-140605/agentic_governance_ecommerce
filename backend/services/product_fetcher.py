@@ -16,6 +16,39 @@ class OnlineProductFetcher:
     def __init__(self):
         self.client = httpx.Client(timeout=4.0, follow_redirects=True)
 
+    def get_products_by_category(self, category_slug: str, limit: int = 12) -> List[Dict[str, Any]]:
+        """
+        Fetches products directly by e-commerce category (smartphones, laptops, home, etc.)
+        """
+        results: List[Dict[str, Any]] = []
+        try:
+            url = f"https://dummyjson.com/products/category/{category_slug}?limit={limit}"
+            resp = self.client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                for p in data.get("products", []):
+                    inr_price = int(round(p.get("price", 100) * USD_TO_INR))
+                    discount_pct = p.get("discountPercentage", 0)
+                    msrp = int(round(inr_price / (1 - (discount_pct / 100)))) if discount_pct > 0 else inr_price
+                    results.append({
+                        "id": f"EXT-{p.get('id', 1000)}",
+                        "name": p.get("title"),
+                        "brand": p.get("brand") or "Verified Brand Partner",
+                        "category": p.get("category", "General").capitalize(),
+                        "price": inr_price,
+                        "msrp": msrp,
+                        "rating": f"{p.get('rating', 4.8)} ★",
+                        "stock": p.get("stock", 12),
+                        "description": p.get("description", ""),
+                        "specs": f"{p.get('brand', 'Direct')} · {p.get('warrantyInformation', 'Official Warranty')} · Express Dispatch",
+                        "image": p.get("thumbnail") or (p.get("images", [None])[0] if p.get("images") else None),
+                        "source": "Category Browse",
+                        "is_live_external": True
+                    })
+        except Exception as e:
+            print(f"[OnlineProductFetcher] Category search notice: {e}")
+        return results
+
     def search_online_products(self, query: str, limit: int = 6) -> List[Dict[str, Any]]:
         """
         Main entry point:

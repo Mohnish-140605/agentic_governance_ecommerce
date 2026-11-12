@@ -4,6 +4,7 @@ export const CUSTOMER_NAV_SCREENS = [
   { id: 'orders', label: 'My Orders', subtitle: 'Receipts & tracking' },
   { id: 'rules', label: 'Spending Rules', subtitle: 'Monthly caps & auto-buy limits' },
   { id: 'not_placed', label: 'Blocked / Safeguards', subtitle: 'Items paused by spending rules' },
+  { id: 'settings', label: 'Settings', subtitle: 'Payment, addresses & preferences' },
   { id: 'how_aria_works', label: 'How It Works', subtitle: 'Cairn governance architecture' }
 ];
 

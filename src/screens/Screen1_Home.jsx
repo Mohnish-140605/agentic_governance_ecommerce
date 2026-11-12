@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui';
 import TrustReceipt from '../components/TrustReceipt';
+import AmazonCategoryGrid from '../components/AmazonCategoryGrid';
+import VoiceModal from '../components/VoiceModal';
 import { formatFirstName } from '../data/navigation';
 import { sendAgentChat, searchOnlineProducts } from '../services/api';
 
@@ -242,6 +244,10 @@ export default function Screen1_Home({
 }) {
   const [promptInput, setPromptInput] = useState('');
   const userName = formatFirstName(currentUser?.name, 'Mohnish');
+
+  // Voice Search & Amazon Department Browse State
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [activeCategorySlug, setActiveCategorySlug] = useState(null);
 
   // ── Integrated Aria Activity & Conversation State ───────────────────────────
   const [chatOpen, setChatOpen] = useState(false);
@@ -821,17 +827,20 @@ export default function Screen1_Home({
             />
             <button
               type="button"
+              onClick={() => setVoiceModalOpen(true)}
               style={{
                 padding: '8px',
-                color: 'var(--ink-muted)',
-                background: 'none',
+                color: voiceModalOpen ? 'var(--forest-green)' : 'var(--ink-muted)',
+                background: voiceModalOpen ? 'var(--forest-green-light)' : 'none',
+                borderRadius: '50%',
                 border: 'none',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                flexShrink: 0
+                flexShrink: 0,
+                transition: 'all 0.15s ease'
               }}
-              title="Voice query"
+              title="Voice search with Whisper / Web Speech"
             >
               <Mic size={18} />
             </button>
@@ -869,6 +878,32 @@ export default function Screen1_Home({
           ))}
         </div>
 
+      </section>
+
+      {/* ─── Amazon-Style Department Browse Hub ─── */}
+      <section style={{
+        maxWidth: 'var(--max-width)',
+        margin: '0 auto',
+        padding: '0 clamp(16px, 3vw, 24px) 24px'
+      }}>
+        <AmazonCategoryGrid
+          selectedCategory={activeCategorySlug}
+          onSelectCategory={(cat) => {
+            setActiveCategorySlug(cat.slug);
+            setPromptInput(`Browse ${cat.name}`);
+            runAgentWorkflow(cat.query);
+          }}
+          onQuickAction={(actionId) => {
+            if (actionId === 'orders' || actionId === 'buy-again') {
+              if (onNavigateToScreen) onNavigateToScreen('orders');
+            } else if (actionId === 'account') {
+              if (onNavigateToScreen) onNavigateToScreen('settings');
+            } else if (actionId === 'lists') {
+              if (onNavigateToScreen) onNavigateToScreen('safeguards');
+            }
+          }}
+          isLoading={agentExecuting}
+        />
       </section>
 
       {/* ─── Integrated Aria Activity & Conversation Panel ─── */}
@@ -1770,6 +1805,16 @@ export default function Screen1_Home({
           </div>
         </section>
       )}
+
+      {/* ─── Free Whisper / Web Speech Real-Time Voice Search Modal ─── */}
+      <VoiceModal
+        isOpen={voiceModalOpen}
+        onClose={() => setVoiceModalOpen(false)}
+        onTranscriptComplete={(spokenQuery) => {
+          setPromptInput(spokenQuery);
+          runAgentWorkflow(spokenQuery);
+        }}
+      />
     </div>
   );
 }

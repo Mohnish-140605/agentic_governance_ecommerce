@@ -12,6 +12,7 @@ export default function MerchantHeader({
   merchantAvatar = null,
   onMenuClick,
   onProfileClick,
+  onNotificationsClick,
   notifications = 3
 }) {
   const [dateRange, setDateRange] = useState('Last 30 days');
@@ -172,6 +173,7 @@ export default function MerchantHeader({
 
         {/* Notifications */}
         <button
+          onClick={onNotificationsClick}
           style={{
             position: 'relative',
             width: '40px',

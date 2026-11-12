@@ -15,14 +15,15 @@ import BuyerLoginPage from './pages/BuyerLoginPage';
 import MerchantLoginPage from './pages/MerchantLoginPage';
 
 import Screen1_Home from './screens/Screen1_Home';
-import Screen2_Chat from './screens/Screen2_Chat';
+import Screen2_Chat from './screens/Screen2_Chat_Copilot';
 import Screen3_NeedsOK from './screens/Screen3_NeedsOK';
 import Screen4_NotPlaced from './screens/Screen4_NotPlaced';
 import Screen5_Orders from './screens/Screen5_Orders';
 import Screen6_Rules from './screens/Screen6_Rules';
 import Screen7_SellerHub from './screens/Screen7_SellerHub';
 import Screen8_StoreHealth from './screens/Screen8_StoreHealth';
-import Screen9_HowAriaWorks from './screens/Screen9_HowAriaWorks';
+import Screen9_HowAriaWorks from './screens/Screen9_Tutorial';
+import Screen10_Settings from './screens/Screen10_Settings';
 
 import { INITIAL_RULES, INITIAL_ORDERS, SELLER_LISTINGS } from './data/mockData';
 import { DEFAULT_USER, POPULAR_LOCATIONS } from './data/navigation';
@@ -520,6 +521,14 @@ export default function App() {
             {activeScreen === 'how_aria_works' && (
               <Screen9_HowAriaWorks
                 onNavigateToScreen={handleNavigateToScreen}
+                currentLocation={currentLocation}
+                onUpdateLocation={setCurrentLocation}
+              />
+            )}
+            {activeScreen === 'settings' && (
+              <Screen10_Settings
+                currentUser={currentUser}
+                onShowToast={showToast}
               />
             )}
           </>

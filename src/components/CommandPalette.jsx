@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Search, X, ArrowRight, ShieldCheck, Mic } from 'lucide-react';
 import { CUSTOMER_NAV_SCREENS, SELLER_NAV_SCREENS } from '../data/navigation';
 import { PICKED_PRODUCTS, ALTERNATIVE_PRODUCTS } from '../data/mockData';
 
@@ -11,6 +11,33 @@ export default function CommandPalette({
   dashboardMode = 'customer'
 }) {
   const [query, setQuery] = useState('');
+  const [isListening, setIsListening] = useState(false);
+
+  const startVoiceSearch = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser. Please type your query.');
+      return;
+    }
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-IN';
+      recognition.interimResults = true;
+      recognition.onstart = () => setIsListening(true);
+      recognition.onresult = (e) => {
+        let text = '';
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          text += e.results[i][0].transcript;
+        }
+        setQuery(text);
+      };
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = () => setIsListening(false);
+      recognition.start();
+    } catch (e) {
+      setIsListening(false);
+    }
+  };
 
   // Keyboard shortcut listener for ESC
   useEffect(() => {
@@ -104,6 +131,24 @@ export default function CommandPalette({
               backgroundColor: 'transparent'
             }}
           />
+          <button
+            type="button"
+            onClick={startVoiceSearch}
+            style={{
+              background: isListening ? '#FEF2F2' : 'none',
+              border: isListening ? '1px solid #FCA5A5' : 'none',
+              borderRadius: '50%',
+              padding: '6px',
+              color: isListening ? '#DC2626' : 'var(--ink-muted)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Search with voice"
+          >
+            <Mic size={18} className={isListening ? 'animate-pulse' : ''} />
+          </button>
           {query ? (
             <button onClick={() => setQuery('')} style={{ color: 'var(--ink-muted)' }}>
               <X size={18} />

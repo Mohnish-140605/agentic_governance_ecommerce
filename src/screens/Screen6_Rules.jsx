@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
-import { 
-  ShieldCheck, 
-  Clock, 
-  Lock, 
-  Check, 
-  Hand, 
-  X 
+import {
+  ShieldCheck,
+  Clock,
+  Check
 } from 'lucide-react';
 import { updatePolicyRules } from '../services/api';
 
@@ -14,50 +11,11 @@ export default function Screen6_Rules({
   setRules,
   onShowToast
 }) {
-  const [activeScenario, setActiveScenario] = useState('scenarioA'); // 'scenarioA' | 'scenarioB' | 'scenarioC'
   const [saveSuccess, setSaveSuccess] = useState(false);
-
-  // Scenarios for real-time testing
-  const scenarios = {
-    scenarioA: {
-      id: '#8491',
-      name: 'Manual Japanese Carafe',
-      merchant: 'Kinfolk Studio Ceramic Works',
-      price: 3450,
-      description: 'Safe to order autonomously. Protected by 15-minute Tranquility hold window.'
-    },
-    scenarioB: {
-      id: '#8842',
-      name: 'Dell XPS 13 Plus',
-      merchant: 'Dell Direct Official Flagship',
-      price: 120000,
-      description: 'High-tier workstation purchase requiring explicit biometrics or manual approval.'
-    },
-    scenarioC: {
-      id: '#9941',
-      name: 'MacBook Air M2 Starlight',
-      merchant: 'UnboxCraft Authorized Studio',
-      price: 75000,
-      description: 'Evaluated against your monthly cap ceiling.'
-    }
-  };
-
-  const currentScenario = scenarios[activeScenario];
-
-  // Dynamic evaluation based on current rules
-  const exceedsCap = currentScenario.price > rules.monthlyCap;
-  const exceedsThreshold = currentScenario.price > rules.approvalThreshold;
-
-  let simStatus = 'auto_order'; // 'auto_order' | 'needs_ok' | 'failed'
-  if (exceedsCap) {
-    simStatus = 'failed';
-  } else if (exceedsThreshold) {
-    simStatus = 'needs_ok';
-  }
 
   const handleSave = () => {
     setSaveSuccess(true);
-    updatePolicyRules(rules).catch(() => {});
+    updatePolicyRules(rules).catch(() => { });
     if (onShowToast) {
       onShowToast("Personal safeguards cryptographically saved and deployed to Aria Enclave.");
     }
@@ -125,12 +83,14 @@ export default function Screen6_Rules({
           </div>
         </div>
 
-        {/* 2-Column Split: Controls on Left / Live Rule Simulator on Right */}
+        {/* Single Column: Guardrail Controls */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+          gridTemplateColumns: '1fr',
           gap: '36px',
-          alignItems: 'start'
+          alignItems: 'start',
+          maxWidth: '800px',
+          margin: '0 auto'
         }}>
           {/* Left Column: Guardrail Sliders and Controls */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -402,222 +362,6 @@ export default function Screen6_Rules({
               <span style={{ fontSize: '12.5px', color: 'var(--ink-muted)' }}>
                 Last updated {new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} today
               </span>
-            </div>
-          </div>
-
-          {/* Right Column: Live Rule Simulator (Real-Time!) */}
-          <div style={{ position: 'sticky', top: '100px' }}>
-            <div className="cairn-card" style={{ padding: '24px', backgroundColor: '#FFFFFF', boxShadow: 'var(--shadow-warm-lg)' }}>
-              {/* Simulator Header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-                  <span style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 600 }}>
-                    Live Rule Simulator
-                  </span>
-                </div>
-                <span className="badge-neutral" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  REAL-TIME
-                </span>
-              </div>
-
-              {/* Scenario Switcher Tabs */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '20px' }}>
-                {[
-                  { id: 'scenarioA', label: 'Scenario A' },
-                  { id: 'scenarioB', label: 'Scenario B' },
-                  { id: 'scenarioC', label: 'Scenario C' }
-                ].map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setActiveScenario(s.id)}
-                    style={{
-                      padding: '8px',
-                      borderRadius: '10px',
-                      fontSize: '12px',
-                      fontWeight: activeScenario === s.id ? 700 : 500,
-                      backgroundColor: activeScenario === s.id ? 'var(--forest-green)' : 'var(--bg-cream-subtle)',
-                      color: activeScenario === s.id ? '#FFFFFF' : 'var(--ink)',
-                      textAlign: 'center',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Intent Preview Box */}
-              <div style={{
-                backgroundColor: 'var(--bg-cream-subtle)',
-                borderRadius: '16px',
-                padding: '16px',
-                marginBottom: '18px'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
-                  <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--ink-muted)' }}>
-                    ARIA INTENT AUDIT {currentScenario.id}
-                  </div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink)' }}>
-                    ₹{currentScenario.price.toLocaleString('en-IN')}
-                  </div>
-                </div>
-
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 600, color: 'var(--ink)' }}>
-                  {currentScenario.name}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--ink-secondary)', marginBottom: '12px' }}>
-                  {currentScenario.merchant}
-                </div>
-
-                {/* Simulated Outcome Badge */}
-                <div style={{ marginBottom: '10px' }}>
-                  {simStatus === 'auto_order' && (
-                    <span className="badge-placed">
-                      ● Auto-Ordered (Under all caps)
-                    </span>
-                  )}
-                  {simStatus === 'needs_ok' && (
-                    <span className="badge-review">
-                      ● Needs Confirmation (Exceeds approval threshold)
-                    </span>
-                  )}
-                  {simStatus === 'failed' && (
-                    <span className="badge-failed">
-                      ● Guardrail Triggered (Breaches monthly cap)
-                    </span>
-                  )}
-                </div>
-
-                <p style={{ fontSize: '12.5px', color: 'var(--ink-secondary)' }}>
-                  {currentScenario.description}
-                </p>
-              </div>
-
-              {/* Simulated Stamps */}
-              <div style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: '16px',
-                border: '1px solid var(--border-cream)',
-                padding: '16px',
-                marginBottom: '18px'
-              }}>
-                <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: 'var(--ink-muted)', marginBottom: '10px' }}>
-                  VERIFICATION LEDGER
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: '8px' }}>
-                  {/* Budget Stamp */}
-                  <div style={{
-                    backgroundColor: exceedsCap ? 'var(--coral-light)' : 'var(--forest-green-light)',
-                    border: `1px solid ${exceedsCap ? 'var(--coral-border)' : 'var(--forest-green-border)'}`,
-                    borderRadius: '10px',
-                    padding: '8px 6px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#FFFFFF', margin: '0 auto 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {exceedsCap ? <X size={12} color="var(--coral-dark)" /> : <Check size={12} color="var(--forest-green)" />}
-                    </div>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink)' }}>WITHIN BUDGET</div>
-                    <div style={{ fontSize: '9.5px', color: 'var(--ink-secondary)' }}>
-                      {exceedsCap ? 'Breached' : 'Headroom OK'}
-                    </div>
-                  </div>
-
-                  {/* Under Limit Stamp */}
-                  <div style={{
-                    backgroundColor: exceedsThreshold ? 'var(--butter-yellow-light)' : 'var(--forest-green-light)',
-                    border: `1px solid ${exceedsThreshold ? 'var(--butter-yellow-border)' : 'var(--forest-green-border)'}`,
-                    borderRadius: '10px',
-                    padding: '8px 6px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#FFFFFF', margin: '0 auto 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {exceedsThreshold ? <Hand size={12} color="var(--butter-yellow-dark)" /> : <Check size={12} color="var(--forest-green)" />}
-                    </div>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink)' }}>UNDER LIMIT</div>
-                    <div style={{ fontSize: '9.5px', color: 'var(--ink-secondary)' }}>
-                      {exceedsThreshold ? 'Needs OK' : 'Auto cleared'}
-                    </div>
-                  </div>
-
-                  {/* Seller Stamp */}
-                  <div style={{
-                    backgroundColor: 'var(--forest-green-light)',
-                    border: '1px solid var(--forest-green-border)',
-                    borderRadius: '10px',
-                    padding: '8px 6px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#FFFFFF', margin: '0 auto 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Check size={12} color="var(--forest-green)" />
-                    </div>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink)' }}>SELLER VETTED</div>
-                    <div style={{ fontSize: '9.5px', color: 'var(--ink-secondary)' }}>99.4% Trust</div>
-                  </div>
-                </div>
-
-                {/* Barcode simulation */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed var(--border-cream)' }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--ink-muted)' }}>CRN-8849-RULE-LOCK</span>
-                  <div style={{ display: 'flex', gap: '2px', height: '14px', alignItems: 'flex-end' }}>
-                    {[8, 14, 6, 12, 14, 4, 10, 14, 8, 12].map((h, i) => (
-                      <div key={i} style={{ width: '2px', height: `${h}px`, backgroundColor: 'var(--ink-muted)' }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Explanatory Reassurance */}
-              <div style={{
-                backgroundColor: 'var(--bg-cream-subtle)',
-                borderRadius: '12px',
-                padding: '12px',
-                fontSize: '12px',
-                color: 'var(--ink-secondary)',
-                lineHeight: 1.5,
-                marginBottom: '16px'
-              }}>
-                {simStatus === 'auto_order' && "Under all caps. Aria safely auto-orders this essential without interrupting you."}
-                {simStatus === 'needs_ok' && "Exceeds auto threshold. Aria initiates a 15-minute Tranquility hold and alerts you."}
-                {simStatus === 'failed' && "Breaches your monthly cap. Execution halts instantly with zero charge."}
-              </div>
-
-              {/* Deterministic Guarantee card */}
-              <div style={{
-                backgroundColor: '#FAF7F0',
-                borderRadius: '16px',
-                padding: '16px',
-                border: '1px solid var(--border-cream)',
-                display: 'flex',
-                gap: '12px'
-              }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '10px',
-                  backgroundColor: 'var(--forest-green)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#FFFFFF',
-                  flexShrink: 0
-                }}>
-                  <Lock size={16} />
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '15px', fontWeight: 600, color: 'var(--ink)', marginBottom: '3px' }}>
-                    Deterministic Guarantee
-                  </div>
-                  <p style={{ fontSize: '12px', color: 'var(--ink-secondary)', lineHeight: 1.45, marginBottom: '6px' }}>
-                    Aria cannot override your rules. Rules are enforced deterministically by code before payment intent is created. No hallucination or prompt injection can force payment beyond these limits.
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: 'var(--forest-green)', fontWeight: 600 }}>
-                    <span>✓ Client-Signed Contract</span>
-                    <span>✓ AES-256 Guard Enclave</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

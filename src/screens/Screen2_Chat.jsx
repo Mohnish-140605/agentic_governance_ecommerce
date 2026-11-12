@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Sparkles, 
-  Send, 
-  Mic, 
-  SlidersHorizontal, 
-  Truck, 
+import {
+  Sparkles,
+  Send,
+  Mic,
+  SlidersHorizontal,
+  Truck,
   Lock,
   Plus,
   RotateCcw
 } from 'lucide-react';
 import TrustReceipt from '../components/TrustReceipt';
+import VoiceModal from '../components/VoiceModal';
 
 let msgCounter = 200;
 
@@ -19,7 +20,7 @@ function createInitialThread(prompt, userName) {
   }
 
   const lower = prompt.toLowerCase();
-  
+
   // Specific Check: Under 30k budget
   if (lower.includes('30k') || lower.includes('30,000') || lower.includes('30000') || (lower.includes('laptop') && (lower.includes('30') || lower.includes('budget')))) {
     return [
@@ -278,6 +279,7 @@ export default function Screen2_Chat({
   const [messages, setMessages] = useState(() => createInitialThread(initialPrompt, userName));
   const [inputVal, setInputVal] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
 
   const suggestionChips = [
     { label: "Customize modular ports before dispatch", icon: "ports" },
@@ -305,7 +307,7 @@ export default function Screen2_Chat({
     setTimeout(() => {
       setIsTyping(false);
       let replyText = `I've noted that for you, ${userName}. The parameters remain strictly bound by your personal rules.`;
-      
+
       const lower = text.toLowerCase();
       if (lower.includes('calendar')) {
         replyText = "Delivery event for Thursday, 24 Oct (10:00 AM - 2:00 PM) has been mindfully added to your calendar.";
@@ -444,6 +446,7 @@ export default function Screen2_Chat({
             />
             <button
               type="button"
+              onClick={() => setVoiceModalOpen(true)}
               style={{ padding: '8px', color: 'var(--ink-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
               title="Voice query"
             >
@@ -608,7 +611,7 @@ export default function Screen2_Chat({
               <span>New</span>
             </button>
 
-            <button 
+            <button
               onClick={() => onNavigateToScreen('rules')}
               title="View active spending rules"
               style={{ padding: '4px', color: 'var(--ink-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -890,7 +893,7 @@ export default function Screen2_Chat({
         padding: '10px clamp(12px, 3vw, 20px) clamp(12px, 2vh, 18px)'
       }}>
         <div style={{ maxWidth: '820px', margin: '0 auto' }}>
-          <form 
+          <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSend();
@@ -922,6 +925,7 @@ export default function Screen2_Chat({
             />
             <button
               type="button"
+              onClick={() => setVoiceModalOpen(true)}
               style={{ padding: '8px', color: 'var(--ink-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
               title="Voice query"
             >
@@ -963,6 +967,16 @@ export default function Screen2_Chat({
           </div>
         </div>
       </div>
+
+      {/* Voice Input Modal */}
+      <VoiceModal
+        isOpen={voiceModalOpen}
+        onClose={() => setVoiceModalOpen(false)}
+        onTranscriptComplete={(text) => {
+          setInputVal(text);
+          setVoiceModalOpen(false);
+        }}
+      />
     </div>
   );
 }
