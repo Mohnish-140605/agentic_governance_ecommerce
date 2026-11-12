@@ -130,3 +130,4 @@ class OnlineProductFetcher:
         }]
 
 product_fetcher = OnlineProductFetcher()
+
