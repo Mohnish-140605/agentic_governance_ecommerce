@@ -1,0 +1,41 @@
+# Cairn Agentic Commerce Platform — Backend Requirements
+# Production-ready dependency manifest
+
+# ─── Core API Framework ────────────────────────────────────────────────────
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0           # includes gunicorn, httptools, websockets
+
+# ─── Data Validation ──────────────────────────────────────────────────────
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6             # Form/file upload support
+
+# ─── Database ─────────────────────────────────────────────────────────────
+sqlalchemy>=2.0.0                   # ORM + Core; swap to PostgreSQL with no code changes
+# psycopg2-binary>=2.9.9            # Uncomment for PostgreSQL production
+# asyncpg>=0.29.0                   # Uncomment for async PostgreSQL
+
+# ─── LangChain / LangGraph Multi-Agent ────────────────────────────────────
+langchain>=0.1.0
+langgraph>=0.1.0
+langchain-community>=0.0.20
+
+# ─── Rate Limiting ────────────────────────────────────────────────────────
+slowapi>=0.1.9                      # Starlette-compatible rate limiter
+
+# ─── Security ─────────────────────────────────────────────────────────────
+# python-jose[cryptography]>=3.3.0  # JWT tokens — uncomment when adding auth layer
+# passlib[bcrypt]>=1.7.4            # Password hashing — uncomment for user auth
+
+# ─── Redis / Queue (optional — for BullMQ-equivalent background jobs) ─────
+redis>=4.6.0                        # Already installed; wire to Celery tasks if needed
+# celery>=5.3.0                     # Task queue for SLA checks, delayed jobs
+
+# ─── Observability ────────────────────────────────────────────────────────
+# opentelemetry-sdk>=1.20.0         # Tracing — uncomment for Jaeger/Tempo
+# prometheus-fastapi-instrumentator>=6.0.0  # Metrics — uncomment for Grafana
+
+# ─── Testing ──────────────────────────────────────────────────────────────
+pytest>=7.0.0
+httpx>=0.24.0                       # Async test client for FastAPI
+

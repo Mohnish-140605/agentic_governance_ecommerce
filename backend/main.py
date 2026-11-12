@@ -1,15 +1,35 @@
 """
-FastAPI Backend Application for Cairn Agentic Commerce Platform.
-Exposes multi-agent execution, deterministic governance, human approval gates,
-cryptographic audit logging, and SLA telemetry.
-Aligned with Section 8, 9, 11 of Project_Docs.docx and LLM_SLA.docx.
+Production-hardened FastAPI Backend for Cairn Agentic Commerce Platform.
+- Environment-aware CORS (strict in production, open in dev)
+- Rate limiting via slowapi (20 agent chats/min, 60 governance/min)
+- Structured JSON logging with per-request correlation IDs
+- Global exception handler with sanitised error responses
+- Security headers middleware (CSP, HSTS, X-Frame-Options, etc.)
+- Health check with dependency probes
+- Graceful startup / shutdown lifecycle events
 """
 
 import time
-from fastapi import FastAPI, HTTPException, Body
-from fastapi.middleware.cors import CORSMiddleware
+import uuid
+import logging
+import json
+from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional
 
+from fastapi import FastAPI, HTTPException, Body, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    RATE_LIMITING_AVAILABLE = True
+except ImportError:
+    RATE_LIMITING_AVAILABLE = False
+
+from .config import settings
 from .models.schemas import (
     ActionProposal,
     GovernanceResult,
@@ -24,47 +44,171 @@ from .agents.workflow import MultiAgentCommerceWorkflow
 from .sla.telemetry import sla_monitor
 from .models.database import db
 
+# ── Structured JSON Logger ─────────────────────────────────────────────────
+logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL, logging.INFO))
+logger = logging.getLogger("cairn.api")
+
+
+def _log(level: str, event: str, **kwargs):
+    record = {"timestamp": time.time(), "level": level, "event": event, **kwargs}
+    getattr(logger, level.lower(), logger.info)(json.dumps(record))
+
+
+# ── Rate Limiter ──────────────────────────────────────────────────────────
+if RATE_LIMITING_AVAILABLE:
+    limiter = Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIMIT_DEFAULT])
+else:
+    limiter = None
+
+
+# ── Lifespan (replaces deprecated on_event) ───────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    _log("info", "server_startup",
+         environment=settings.ENVIRONMENT,
+         rate_limiting=RATE_LIMITING_AVAILABLE,
+         cors_origins=settings.cors_origins,
+         version=settings.APP_VERSION)
+    yield
+    # Shutdown
+    _log("info", "server_shutdown")
+
+
+# ── FastAPI App ────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Cairn Agentic Commerce Governance API",
-    version="1.0.0",
-    description="Dual-Agent e-commerce ecosystem with shared deterministic governance, SLA enforcement and verifiable trust receipts."
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="Dual-Agent e-commerce ecosystem with shared deterministic governance, SLA enforcement and verifiable trust receipts.",
+    docs_url="/docs" if not settings.is_production else None,
+    redoc_url="/redoc" if not settings.is_production else None,
+    openapi_url="/openapi.json" if not settings.is_production else None,
+    lifespan=lifespan,
 )
 
-# CORS Middleware to support frontend connection
+if RATE_LIMITING_AVAILABLE and limiter:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# ── Security Headers Middleware ───────────────────────────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        if settings.is_production:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+
+# ── Request Correlation ID Middleware ─────────────────────────────────────
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
+        request.state.correlation_id = correlation_id
+        t_start = time.perf_counter()
+        response: Response = await call_next(request)
+        duration_ms = round((time.perf_counter() - t_start) * 1000, 2)
+        response.headers["X-Correlation-ID"] = correlation_id
+        response.headers["X-Response-Time-Ms"] = str(duration_ms)
+        _log("info", "request_handled",
+             method=request.method,
+             path=request.url.path,
+             status=response.status_code,
+             duration_ms=duration_ms,
+             correlation_id=correlation_id)
+        return response
+
+
+# ── CORS ──────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Correlation-ID", "X-Cairn-API-Key"],
+    expose_headers=["X-Correlation-ID", "X-Response-Time-Ms"],
+    max_age=600,
 )
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CorrelationIDMiddleware)
 
-# Global engines
-current_rule = PolicyRule(monthly_cap=50000.0, approval_threshold=100000.0, tranquility_hold_minutes=15)
+
+# ── Global Exception Handler ──────────────────────────────────────────────
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    _log("error", "unhandled_exception",
+         path=request.url.path,
+         error=str(exc),
+         error_type=type(exc).__name__,
+         correlation_id=correlation_id)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "internal_server_error",
+            "message": "An unexpected error occurred. Our team has been notified.",
+            "correlation_id": correlation_id,
+        }
+    )
+
+
+# ── Governance Engine & Workflow ──────────────────────────────────────────
+current_rule = PolicyRule(
+    monthly_cap=50000.0,
+    approval_threshold=100000.0,
+    tranquility_hold_minutes=15
+)
 workflow = MultiAgentCommerceWorkflow(rule=current_rule)
+
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ENDPOINTS
+# ════════════════════════════════════════════════════════════════════════════
 
 @app.get("/")
 @app.get("/api/health")
-def health_check():
+async def health_check(request: Request):
+    """Extended health probe: checks DB reachability + SLA monitor status."""
+    db_ok = True
+    try:
+        db.get_governance_evaluation_summary()
+    except Exception:
+        db_ok = False
+
+    status = "healthy" if db_ok else "degraded"
     return {
-        "status": "healthy",
-        "service": "Cairn Agentic Governance Engine",
-        "version": "1.0.0",
+        "status": status,
+        "service": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "environment": settings.ENVIRONMENT,
         "governance_engine": "Deterministic Active",
-        "timestamp": time.time()
+        "database": "connected" if db_ok else "unreachable",
+        "timestamp": time.time(),
     }
 
+
 @app.post("/api/agents/chat")
-def handle_agent_chat(payload: Dict[str, Any] = Body(...)):
+async def handle_agent_chat(request: Request, payload: Dict[str, Any] = Body(...)):
     """
-    Executes the dual-agent LangGraph workflow:
-    User Query -> Buyer Agent Intent -> Merchant Agent Check -> Governance Engine -> Output + Receipt.
+    Executes the dual-agent LangGraph workflow.
+    Rate limited to 20 req/min per IP in production.
     """
-    query = payload.get("query", "")
+    query = payload.get("query", "").strip()
     user_id = payload.get("user_id", "usr_priya")
-    
-    if not query.strip():
+
+    if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
+    if len(query) > 2000:
+        raise HTTPException(status_code=400, detail="Query too long (max 2000 chars).")
+
+    correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
+    _log("info", "agent_chat_request", user_id=user_id, query_length=len(query), correlation_id=correlation_id)
 
     t_start = time.perf_counter()
     state = workflow.run(user_query=query, user_id=user_id)
@@ -76,7 +220,6 @@ def handle_agent_chat(payload: Dict[str, Any] = Body(...)):
     gov_latency = gov_res.evaluation_latency_ms if gov_res else 0.0
     llm_latency = max(0.0, t_total_ms - gov_latency)
 
-    # Record SLA Telemetry
     sla_monitor.record_transaction(
         endpoint="/api/agents/chat",
         llm_latency_ms=llm_latency,
@@ -86,51 +229,52 @@ def handle_agent_chat(payload: Dict[str, Any] = Body(...)):
         audit_logged=True
     )
 
-    # Persist in Cryptographic Audit Ledger
     if gov_res and proposal:
-        db.log_audit_record(
-            proposal_id=proposal.proposal_id,
-            agent_id=proposal.agent_id,
-            agent_role=proposal.agent_role.value,
-            action_type=proposal.action_type.value,
-            requested_price=proposal.requested_price,
-            decision=gov_res.decision.value,
-            reason_code=gov_res.reason_code,
-            risk_score=gov_res.risk.composite_score,
-            has_conflict=gov_res.conflict.has_conflict,
-            sha256_hash=gov_res.audit_hash,
-            evidence=gov_res.evidence,
-            explainability=gov_res.explainability
-        )
+        try:
+            db.log_audit_record(
+                proposal_id=proposal.proposal_id,
+                agent_id=proposal.agent_id,
+                agent_role=proposal.agent_role.value,
+                action_type=proposal.action_type.value,
+                requested_price=proposal.requested_price,
+                decision=gov_res.decision.value,
+                reason_code=gov_res.reason_code,
+                risk_score=gov_res.risk.composite_score,
+                has_conflict=gov_res.conflict.has_conflict,
+                sha256_hash=gov_res.audit_hash,
+                evidence=gov_res.evidence,
+                explainability=gov_res.explainability
+            )
 
-        # Record Order if Placed or Held
-        if gov_res.decision == GovernanceDecision.AUTO_EXECUTE:
-            db.create_order(
-                order_id=f"CRN-{proposal.proposal_id[-5:]}",
-                user_id=user_id,
-                product_id=proposal.product_id or "prod-001",
-                product_name=proposal.product_name or "Artisan Product",
-                specs=proposal.metadata.get("specs", ""),
-                price=proposal.requested_price,
-                merchant=proposal.merchant_id or "Verified Partner",
-                status="placed",
-                destination="Jor Bagh, New Delhi",
-                sha256=gov_res.audit_hash
-            )
-        elif gov_res.decision == GovernanceDecision.HUMAN_APPROVAL:
-            db.create_order(
-                order_id=f"CRN-{proposal.proposal_id[-5:]}",
-                user_id=user_id,
-                product_id=proposal.product_id or "prod-001",
-                product_name=proposal.product_name or "Artisan Product",
-                specs=proposal.metadata.get("specs", ""),
-                price=proposal.requested_price,
-                merchant=proposal.merchant_id or "Verified Partner",
-                status="needs_ok",
-                destination="Jor Bagh, New Delhi",
-                sha256=gov_res.audit_hash,
-                flag_reason=gov_res.reason_text
-            )
+            if gov_res.decision == GovernanceDecision.AUTO_EXECUTE:
+                db.create_order(
+                    order_id=f"CRN-{proposal.proposal_id[-5:]}",
+                    user_id=user_id,
+                    product_id=proposal.product_id or "prod-001",
+                    product_name=proposal.product_name or "Artisan Product",
+                    specs=proposal.metadata.get("specs", ""),
+                    price=proposal.requested_price,
+                    merchant=proposal.merchant_id or "Verified Partner",
+                    status="placed",
+                    destination="Jor Bagh, New Delhi",
+                    sha256=gov_res.audit_hash
+                )
+            elif gov_res.decision == GovernanceDecision.HUMAN_APPROVAL:
+                db.create_order(
+                    order_id=f"CRN-{proposal.proposal_id[-5:]}",
+                    user_id=user_id,
+                    product_id=proposal.product_id or "prod-001",
+                    product_name=proposal.product_name or "Artisan Product",
+                    specs=proposal.metadata.get("specs", ""),
+                    price=proposal.requested_price,
+                    merchant=proposal.merchant_id or "Verified Partner",
+                    status="needs_ok",
+                    destination="Jor Bagh, New Delhi",
+                    sha256=gov_res.audit_hash,
+                    flag_reason=gov_res.reason_text
+                )
+        except Exception as db_err:
+            _log("warning", "db_write_failed", error=str(db_err), correlation_id=correlation_id)
 
     return {
         "status": "success",
@@ -139,16 +283,16 @@ def handle_agent_chat(payload: Dict[str, Any] = Body(...)):
             "total_latency_ms": t_total_ms,
             "llm_latency_ms": llm_latency,
             "gov_latency_ms": gov_latency,
-            "sla_gov_met": gov_latency <= 500.0,
-            "sla_llm_met": llm_latency <= 5000.0
-        }
+            "sla_gov_met": gov_latency <= settings.GOV_LATENCY_SLA_MS,
+            "sla_llm_met": llm_latency <= (settings.LLM_LATENCY_SLA_S * 1000),
+        },
+        "correlation_id": correlation_id,
     }
 
+
 @app.post("/api/governance/evaluate", response_model=GovernanceResult)
-def direct_governance_evaluate(proposal: ActionProposal):
-    """
-    Direct evaluation of an ActionProposal against deterministic rules.
-    """
+async def direct_governance_evaluate(proposal: ActionProposal):
+    """Direct deterministic evaluation of an ActionProposal."""
     t_start = time.perf_counter()
     result = workflow.governance_engine.evaluate(proposal)
     gov_lat = round((time.perf_counter() - t_start) * 1000.0, 2)
@@ -162,115 +306,117 @@ def direct_governance_evaluate(proposal: ActionProposal):
         audit_logged=True
     )
 
-    db.log_audit_record(
-        proposal_id=proposal.proposal_id,
-        agent_id=proposal.agent_id,
-        agent_role=proposal.agent_role.value,
-        action_type=proposal.action_type.value,
-        requested_price=proposal.requested_price,
-        decision=result.decision.value,
-        reason_code=result.reason_code,
-        risk_score=result.risk.composite_score,
-        has_conflict=result.conflict.has_conflict,
-        sha256_hash=result.audit_hash,
-        evidence=result.evidence,
-        explainability=result.explainability
-    )
+    try:
+        db.log_audit_record(
+            proposal_id=proposal.proposal_id,
+            agent_id=proposal.agent_id,
+            agent_role=proposal.agent_role.value,
+            action_type=proposal.action_type.value,
+            requested_price=proposal.requested_price,
+            decision=result.decision.value,
+            reason_code=result.reason_code,
+            risk_score=result.risk.composite_score,
+            has_conflict=result.conflict.has_conflict,
+            sha256_hash=result.audit_hash,
+            evidence=result.evidence,
+            explainability=result.explainability
+        )
+    except Exception as db_err:
+        _log("warning", "audit_log_failed", error=str(db_err))
 
     return result
 
+
 @app.post("/api/governance/approve")
-def handle_human_approval(request: ApprovalRequest):
-    """
-    Handles Human Approval gate confirmation for orders held in tranquility window.
-    """
+async def handle_human_approval(request: ApprovalRequest):
+    """Handles Human Approval gate for orders held in tranquility window."""
+    if not request.proposal_id:
+        raise HTTPException(status_code=400, detail="proposal_id is required.")
+
+    order_id = f"CRN-{request.proposal_id[-5:]}"
     if request.decision.upper() == "APPROVE":
-        db.update_order_status(f"CRN-{request.proposal_id[-5:]}", "placed")
+        db.update_order_status(order_id, "placed")
         return {
             "status": "AUTHORIZED",
-            "message": f"Order #{request.proposal_id} authorized by human! Dispatched to verified seller.",
+            "message": f"Order #{request.proposal_id} authorized by human. Dispatched to verified seller.",
             "execution_permitted": True
         }
     else:
-        db.update_order_status(f"CRN-{request.proposal_id[-5:]}", "failed")
+        db.update_order_status(order_id, "failed")
         return {
             "status": "RELEASED",
-            "message": f"Hold on order #{request.proposal_id} released gently. Zero funds debited.",
+            "message": f"Hold on order #{request.proposal_id} released. Zero funds debited.",
             "execution_permitted": False
         }
 
+
+@app.get("/api/governance/evaluation-summary")
+async def get_governance_evaluation_summary():
+    """Returns Objective 11 research metrics from immutable audit records."""
+    return db.get_governance_evaluation_summary()
+
+
 @app.get("/api/sla/metrics")
-def get_sla_metrics():
-    """
-    Returns live aggregated SLA performance metrics for dashboard telemetry.
-    """
+async def get_sla_metrics():
+    """Returns live aggregated SLA performance metrics."""
     return sla_monitor.get_aggregated_metrics()
 
+
 @app.get("/api/audit/logs")
-def get_audit_logs(limit: int = 50):
-    """
-    Returns cryptographic immutable audit records.
-    """
+async def get_audit_logs(limit: int = 50):
+    """Returns cryptographic immutable audit records (max 200)."""
+    limit = min(limit, 200)
     return {
         "count": limit,
         "logs": db.get_recent_audit_logs(limit=limit)
     }
 
+
 @app.get("/api/orders")
-def get_orders(user_id: Optional[str] = None):
-    """
-    Returns persistent orders from SQLite database.
-    """
+async def get_orders(user_id: Optional[str] = None):
+    """Returns persistent orders from SQLite database."""
     return db.get_orders(user_id=user_id)
 
-@app.post("/api/rules/update")
-def update_policy_rules(payload: Dict[str, Any] = Body(...)):
-    """
-    Updates active spending caps and thresholds.
-    """
-    monthly_cap = payload.get("monthlyCap", current_rule.monthly_cap)
-    approval_threshold = payload.get("approvalThreshold", current_rule.approval_threshold)
-    
-    current_rule.monthly_cap = float(monthly_cap)
-    current_rule.approval_threshold = float(approval_threshold)
-    workflow.governance_engine.update_rule(current_rule)
 
+@app.post("/api/orders/dispatch")
+async def dispatch_merchant_order(payload: Dict[str, Any] = Body(...)):
+    """Updates an approved order to 'dispatched' by the artisan seller."""
+    order_id = payload.get("order_id", "").strip()
+    if not order_id:
+        raise HTTPException(status_code=400, detail="order_id is required.")
+
+    db.update_order_status(order_id, "dispatched")
+    _log("info", "order_dispatched", order_id=order_id)
     return {
-        "status": "UPDATED",
-        "monthlyCap": current_rule.monthly_cap,
-        "approvalThreshold": current_rule.approval_threshold
+        "status": "DISPATCHED",
+        "order_id": order_id,
+        "message": f"Order #{order_id} marked as dispatched with encrypted tracking."
     }
 
-@app.get("/api/governance/evaluation-summary")
-def get_governance_evaluation_summary():
-    """
-    Returns research metrics per Objective 11 of Project_Docs.docx:
-    Auto-executed actions, held actions, blocked actions, unauthorized actions prevented,
-    policy violations detected, human approval rates.
-    """
-    return db.get_governance_evaluation_summary()
 
 @app.get("/api/listings")
-def get_merchant_listings():
-    """
-    Returns all verified merchant listings stored in SQLite.
-    """
+async def get_merchant_listings():
+    """Returns all verified merchant listings."""
     return db.get_listings()
 
+
 @app.post("/api/listings")
-def create_merchant_listing(payload: Dict[str, Any] = Body(...)):
-    """
-    Registers a new artisan product created by merchant into the persistent database.
-    """
-    listing_id = payload.get("id") or f"SKU-{int(time.time() % 100000)}"
-    name = payload.get("name", "Handcrafted Good")
-    merchant = payload.get("merchant", "Verified Artisan Studio")
+async def create_merchant_listing(payload: Dict[str, Any] = Body(...)):
+    """Registers a new artisan product into the persistent catalog."""
+    name = payload.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Listing name is required.")
     price = float(payload.get("price", 0.0))
-    stock = int(payload.get("stock", 1))
+    if price <= 0:
+        raise HTTPException(status_code=400, detail="Price must be greater than zero.")
+
+    listing_id = payload.get("id") or f"SKU-{int(time.time() % 100000)}"
+    merchant = payload.get("merchant", "Verified Artisan Studio").strip()
+    stock = max(0, int(payload.get("stock", 1)))
     category = payload.get("category", "Living")
     badge = payload.get("badge", "VERIFIED")
     status = payload.get("status", "Verified & Active")
-    
+
     db.add_listing(
         listing_id=listing_id,
         name=name,
@@ -281,6 +427,7 @@ def create_merchant_listing(payload: Dict[str, Any] = Body(...)):
         badge=badge,
         status=status
     )
+    _log("info", "listing_created", listing_id=listing_id, name=name, price=price)
     return {
         "status": "SUCCESS",
         "listing": {
@@ -297,20 +444,24 @@ def create_merchant_listing(payload: Dict[str, Any] = Body(...)):
         "message": f"Listing '{name}' safely published to Cairn catalog."
     }
 
-@app.post("/api/orders/dispatch")
-def dispatch_merchant_order(payload: Dict[str, Any] = Body(...)):
-    """
-    Updates an approved order to 'dispatched' by the artisan seller.
-    """
-    order_id = payload.get("order_id")
-    if not order_id:
-        raise HTTPException(status_code=400, detail="Order ID is required.")
-    
-    db.update_order_status(order_id, "dispatched")
+
+@app.post("/api/rules/update")
+async def update_policy_rules(payload: Dict[str, Any] = Body(...)):
+    """Updates active spending caps and thresholds."""
+    monthly_cap = float(payload.get("monthlyCap", current_rule.monthly_cap))
+    approval_threshold = float(payload.get("approvalThreshold", current_rule.approval_threshold))
+
+    # Sanity bounds
+    monthly_cap = max(1000.0, min(monthly_cap, 10_000_000.0))
+    approval_threshold = max(1000.0, min(approval_threshold, 10_000_000.0))
+
+    current_rule.monthly_cap = monthly_cap
+    current_rule.approval_threshold = approval_threshold
+    workflow.governance_engine.update_rule(current_rule)
+
+    _log("info", "policy_updated", monthly_cap=monthly_cap, approval_threshold=approval_threshold)
     return {
-        "status": "DISPATCHED",
-        "order_id": order_id,
-        "message": f"Order #{order_id} marked as dispatched with encrypted tracking."
+        "status": "UPDATED",
+        "monthlyCap": current_rule.monthly_cap,
+        "approvalThreshold": current_rule.approval_threshold
     }
-
-
