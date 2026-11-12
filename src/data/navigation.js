@@ -1,10 +1,10 @@
 export const CUSTOMER_NAV_SCREENS = [
-  { id: 'explore', label: 'Explore', subtitle: 'Screen 1 · Quiet Catalog' },
-  { id: 'needs_ok', label: 'Needs my OK', subtitle: 'Screen 3 · Approval Hold', badgeKey: 'approvals' },
-  { id: 'not_placed', label: 'Not Placed', subtitle: 'Screen 4 · Safeguards' },
-  { id: 'orders', label: 'Orders', subtitle: 'Screen 5 · Trust Receipts' },
-  { id: 'rules', label: 'My Rules', subtitle: 'Screen 6 · Personal Safeguards' },
-  { id: 'how_aria_works', label: 'How Aria Works', subtitle: 'Screen 9 · The Cairn Story' }
+  { id: 'explore', label: 'Explore', subtitle: 'Curated products & Aria search' },
+  { id: 'needs_ok', label: 'Pending Approvals', subtitle: 'Orders waiting for your OK', badgeKey: 'approvals' },
+  { id: 'orders', label: 'My Orders', subtitle: 'Receipts & tracking' },
+  { id: 'rules', label: 'Spending Rules', subtitle: 'Monthly caps & auto-buy limits' },
+  { id: 'not_placed', label: 'Blocked / Safeguards', subtitle: 'Items paused by spending rules' },
+  { id: 'how_aria_works', label: 'How It Works', subtitle: 'Cairn governance architecture' }
 ];
 
 export const SELLER_NAV_SCREENS = [

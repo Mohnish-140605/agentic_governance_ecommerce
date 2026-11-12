@@ -542,15 +542,15 @@ export default function Header({
       {/* Subnavigation Bar: Tailored to Active Role */}
       <nav style={{
         borderTop: '1px solid var(--border-cream-subtle)',
-        backgroundColor: dashboardMode === 'seller' ? 'rgba(234, 244, 238, 0.7)' : 'rgba(251, 247, 240, 0.8)'
+        backgroundColor: dashboardMode === 'seller' ? 'rgba(234, 244, 238, 0.85)' : '#FAF6F0'
       }}>
         <div style={{
           maxWidth: 'var(--max-width)',
           margin: '0 auto',
-          padding: '0 24px',
+          padding: '4px 24px',
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
+          gap: '8px',
           overflowX: 'auto',
           scrollbarWidth: 'none'
         }}>
@@ -568,29 +568,37 @@ export default function Header({
                   setMobileMenuOpen(false);
                 }}
                 style={{
-                  padding: '11px 14px',
+                  padding: '7px 14px',
+                  borderRadius: 'var(--radius-pill)',
                   fontSize: '13px',
                   fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--forest-green)' : 'var(--ink-secondary)',
-                  borderBottom: isActive ? '2px solid var(--forest-green)' : '2px solid transparent',
-                  background: 'transparent',
-                  display: 'flex',
+                  color: isActive ? '#FFFFFF' : 'var(--ink-secondary)',
+                  backgroundColor: isActive ? 'var(--forest-green)' : 'transparent',
+                  border: isActive ? '1px solid var(--forest-green)' : '1px solid transparent',
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
                   whiteSpace: 'nowrap',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.04)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
                 <span>{item.label}</span>
                 {hasBadge && (
                   <span style={{
-                    backgroundColor: 'var(--butter-yellow)',
-                    color: 'var(--butter-yellow-dark)',
-                    fontSize: '10px',
+                    backgroundColor: isActive ? '#FFFFFF' : '#FEF3C7',
+                    color: isActive ? 'var(--forest-green)' : '#B45309',
+                    fontSize: '11px',
                     fontWeight: 700,
                     padding: '1px 6px',
                     borderRadius: '9999px',
-                    border: '1px solid var(--butter-yellow-border)'
+                    border: isActive ? 'none' : '1px solid #FCD34D'
                   }}>
                     {badgeCount}
                   </span>
@@ -606,26 +614,30 @@ export default function Header({
               }}
               style={{
                 marginLeft: 'auto',
-                padding: '11px 14px',
-                fontSize: '12.5px',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-pill)',
+                fontSize: '12px',
                 fontWeight: 600,
                 color: 'var(--forest-green)',
-                background: 'transparent',
-                border: 'none',
-                display: 'flex',
+                backgroundColor: 'var(--forest-green-light)',
+                border: '1px solid var(--forest-green-border)',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
                 whiteSpace: 'nowrap',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#D1E7DD'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--forest-green-light)'}
             >
               <Briefcase size={13} />
-              <span>Merchant studio</span>
+              <span>Merchant Studio</span>
             </button>
           )}
           {dashboardMode === 'seller' && (
             <div style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--forest-green)', fontWeight: 600, paddingRight: '6px' }}>
-              Merchant checkpoint
+              Merchant Checkpoint
             </div>
           )}
         </div>

@@ -94,15 +94,19 @@ export default function Screen3_NeedsOK({
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
-            color: 'var(--coral-dark)',
+            color: '#B45309',
+            backgroundColor: '#FEF3C7',
+            padding: '4px 12px',
+            borderRadius: 'var(--radius-pill)',
             fontSize: '12px',
             fontWeight: 700,
-            letterSpacing: '0.06em',
+            letterSpacing: '0.04em',
             textTransform: 'uppercase',
-            marginBottom: '8px'
+            marginBottom: '10px',
+            border: '1px solid #FCD34D'
           }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--coral-dark)' }} />
-            <span>DECISION REQUIRED</span>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#F59E0B' }} />
+            <span>HUMAN APPROVAL GATE · SAFETY THRESHOLD</span>
           </div>
 
           <h1 style={{
@@ -112,11 +116,11 @@ export default function Screen3_NeedsOK({
             color: 'var(--ink)',
             marginBottom: '10px'
           }}>
-            Needs your OK, {userName}.
+            Pending Approval for High-Value Purchase
           </h1>
 
-          <p style={{ fontSize: '18px', color: 'var(--ink-secondary)', maxWidth: '640px' }}>
-            This is above your usual <strong style={{ color: 'var(--ink)' }}>₹{rules ? rules.approvalThreshold.toLocaleString('en-IN') : '1,00,000'}</strong> autonomous threshold. Want me to go ahead with this order?
+          <p style={{ fontSize: '17px', color: 'var(--ink-secondary)', maxWidth: '680px', lineHeight: 1.5 }}>
+            To protect your funds, Aria cannot auto-debit items above your <strong style={{ color: 'var(--ink)' }}>₹{rules ? rules.approvalThreshold.toLocaleString('en-IN') : '1,00,000'}</strong> threshold without your explicit confirmation.
           </p>
         </div>
 
