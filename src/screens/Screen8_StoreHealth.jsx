@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Activity, 
   FileCheck,
@@ -12,73 +12,120 @@ import {
   RefreshCw,
   AlertCircle
 } from 'lucide-react';
+import { fetchSLAMetrics, fetchAuditLogs } from '../services/api';
 
 export default function Screen8_StoreHealth({ onShowToast }) {
   const [selectedBenchmark, setSelectedBenchmark] = useState('routine');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [serverSla, setServerSla] = useState(null);
+  const [auditFeed, setAuditFeed] = useState([
+    {
+      id: 'AUD-9912',
+      time: '2 mins ago',
+      orderId: 'CRN-9842',
+      check: 'Framework 13 cleared against hardware allowance (₹94,990 < ₹1,00,000)',
+      result: 'PASS · SIGNED'
+    },
+    {
+      id: 'AUD-9911',
+      time: '18 mins ago',
+      orderId: 'CRN-88421',
+      check: 'Dell XPS 13 flagged for manual biometric OK (₹1,20,000 > ₹1,00,000 threshold)',
+      result: 'HOLD · DECISION REQUIRED'
+    },
+    {
+      id: 'AUD-9910',
+      time: '1 hour ago',
+      orderId: 'CRN-99410',
+      check: 'Gaming laptop halted: exceeds ₹50,000 monthly ceiling by ₹25,000',
+      result: 'HALTED · 0 CHARGED'
+    }
+  ]);
 
-  const handleRefreshSla = () => {
+  const loadData = async () => {
+    const metrics = await fetchSLAMetrics();
+    if (metrics) setServerSla(metrics);
+    
+    const logs = await fetchAuditLogs(10);
+    if (logs && logs.length > 0) {
+      const formatted = logs.map(l => ({
+        id: `AUD-${l.id}`,
+        time: 'Just now',
+        orderId: l.proposal_id ? `CRN-${l.proposal_id.slice(-5)}` : 'CRN-SYS',
+        check: `${l.action_type || 'PROPOSE_ORDER'}: ${l.reason_code} - ₹${(l.requested_price || 0).toLocaleString('en-IN')}`,
+        result: l.decision === 'AUTO_EXECUTE' ? 'PASS · SIGNED' : l.decision === 'HUMAN_APPROVAL' ? 'HOLD · DECISION REQUIRED' : 'HALTED · 0 CHARGED'
+      }));
+      setAuditFeed(prev => [...formatted, ...prev].slice(0, 10));
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleRefreshSla = async () => {
     setIsRefreshing(true);
+    await loadData();
     setTimeout(() => {
       setIsRefreshing(false);
       if (onShowToast) onShowToast("SLA telemetry synchronized with live Governance Enclave.");
-    }, 600);
+    }, 400);
   };
 
   const slaMetrics = [
     {
       id: 'gov-latency',
       label: 'Governance Latency',
-      current: '148 ms',
+      current: serverSla ? `${serverSla.gov_p95_ms} ms` : '148 ms',
       target: '≤ 500 ms (95th %ile)',
-      compliance: '99.4%',
+      compliance: serverSla ? `${serverSla.gov_compliance_pct}%` : '99.4%',
       status: 'Optimal',
       icon: <Zap size={16} color="var(--forest-green)" />,
-      progress: 99.4,
+      progress: serverSla ? serverSla.gov_compliance_pct : 99.4,
       note: 'Deterministic in-memory evaluation before tool execution'
     },
     {
       id: 'llm-latency',
       label: 'LLM Response Time',
-      current: '2.64 s',
+      current: serverSla ? `${serverSla.llm_p95_s} s` : '2.64 s',
       target: '≤ 5.0 s (95th %ile)',
-      compliance: '98.1%',
+      compliance: serverSla ? `${serverSla.llm_compliance_pct}%` : '98.1%',
       status: 'Optimal',
       icon: <Clock size={16} color="var(--forest-green)" />,
-      progress: 98.1,
+      progress: serverSla ? serverSla.llm_compliance_pct : 98.1,
       note: 'Qwen / Gemma open-weight local inference'
     },
     {
       id: 'output-validity',
       label: 'Structured Output Validity',
-      current: '99.1%',
+      current: serverSla ? `${serverSla.validity_pct}%` : '99.1%',
       target: '≥ 95.0% after retries',
-      compliance: '99.1%',
+      compliance: serverSla ? `${serverSla.validity_pct}%` : '99.1%',
       status: 'Optimal',
       icon: <CheckCircle2 size={16} color="var(--forest-green)" />,
-      progress: 99.1,
+      progress: serverSla ? serverSla.validity_pct : 99.1,
       note: 'Pydantic schema validation for all agent proposals'
     },
     {
       id: 'gov-enforcement',
       label: 'Governance Enforcement',
-      current: '100.0%',
+      current: serverSla ? `${serverSla.enforcement_pct}%` : '100.0%',
       target: '100% (Zero bypass)',
-      compliance: '100.0%',
+      compliance: serverSla ? `${serverSla.enforcement_pct}%` : '100.0%',
       status: 'Locked',
       icon: <ShieldCheck size={16} color="var(--forest-green)" />,
-      progress: 100,
+      progress: serverSla ? serverSla.enforcement_pct : 100,
       note: 'All consequential actions intercepted prior to tool call'
     },
     {
       id: 'audit-completeness',
       label: 'Audit Completeness',
-      current: '100.0%',
+      current: serverSla ? `${serverSla.audit_completeness_pct}%` : '100.0%',
       target: '100% recorded',
-      compliance: '100.0%',
+      compliance: serverSla ? `${serverSla.audit_completeness_pct}%` : '100.0%',
       status: 'Locked',
       icon: <FileCheck size={16} color="var(--forest-green)" />,
-      progress: 100,
+      progress: serverSla ? serverSla.audit_completeness_pct : 100,
       note: 'Every proposal, decision, and outcome hashed with SHA-256'
     },
     {
@@ -527,7 +574,7 @@ export default function Screen8_StoreHealth({ onShowToast }) {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {recentAudits.map((audit) => (
+            {auditFeed.map((audit) => (
               <div
                 key={audit.id}
                 style={{
