@@ -48,6 +48,13 @@ export async function checkBackendHealth() {
   return data?.status === 'healthy' || data?.status === 'degraded';
 }
 
+// ── Live Online Products Search ──────────────────────────────────────────
+export async function searchOnlineProducts(query, limit = 6) {
+  if (!query || !query.trim()) return [];
+  const data = await _fetch(`/api/products/search?q=${encodeURIComponent(query.trim())}&limit=${limit}`, {}, 4000);
+  return data?.results || [];
+}
+
 // ── Agents ────────────────────────────────────────────────────────────────
 export async function sendAgentChat(query, userId = 'usr_priya') {
   return _fetch('/api/agents/chat', {

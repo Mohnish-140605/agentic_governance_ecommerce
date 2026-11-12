@@ -43,6 +43,7 @@ from .governance.policies import PolicyRule
 from .agents.workflow import MultiAgentCommerceWorkflow
 from .sla.telemetry import sla_monitor
 from .models.database import db
+from .services.product_fetcher import product_fetcher
 
 # ── Structured JSON Logger ─────────────────────────────────────────────────
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL, logging.INFO))
@@ -276,9 +277,13 @@ async def handle_agent_chat(request: Request, payload: Dict[str, Any] = Body(...
         except Exception as db_err:
             _log("warning", "db_write_failed", error=str(db_err), correlation_id=correlation_id)
 
+    # Fetch live online matches dynamically for the user's query
+    live_online_products = product_fetcher.search_online_products(query, limit=5)
+
     return {
         "status": "success",
         "workflow_state": state,
+        "live_online_products": live_online_products,
         "telemetry": {
             "total_latency_ms": t_total_ms,
             "llm_latency_ms": llm_latency,
@@ -288,6 +293,50 @@ async def handle_agent_chat(request: Request, payload: Dict[str, Any] = Body(...
         },
         "correlation_id": correlation_id,
     }
+
+
+@app.get("/api/products/search")
+async def search_live_products(q: str = "", limit: int = 6):
+    """
+    Search and fetch real online products in real time with pricing in INR.
+    100% Free - no API key needed.
+    """
+    if not q.strip():
+        return {"query": "", "results": []}
+    
+    results = product_fetcher.search_online_products(q, limit=limit)
+    
+    # Audit each product proposal against active governance rules
+    audited_results = []
+    for item in results:
+        proposal = ActionProposal(
+            agent_id="agt_aria_online",
+            agent_role=AgentRole.BUYER_AGENT,
+            action_type=ActionType.PROPOSE_ORDER,
+            product_id=item["id"],
+            product_name=item["name"],
+            requested_price=float(item["price"]),
+            merchant_id=item.get("brand", "Online Merchant"),
+            metadata={"specs": item.get("specs", ""), "category": item.get("category", "")}
+        )
+        gov_eval = workflow.governance_engine.evaluate(proposal)
+        audited_results.append({
+            **item,
+            "governance": {
+                "decision": gov_eval.decision.value,
+                "reason_code": gov_eval.reason_code,
+                "reason_text": gov_eval.reason_text,
+                "risk_score": gov_eval.risk.composite_score,
+                "audit_hash": gov_eval.audit_hash[:16] + "..."
+            }
+        })
+        
+    return {
+        "query": q,
+        "count": len(audited_results),
+        "results": audited_results
+    }
+
 
 
 @app.post("/api/governance/evaluate", response_model=GovernanceResult)
