@@ -293,20 +293,29 @@ export default function Screen1_Home({
 
     // Extract numeric budget cap if stated in query
     let parsedBudget = null;
-    const matchUnder = lower.match(/under\s*₹?\s*(\d[\d,]*)/i);
-    const matchK = lower.match(/(\d+)\s*k/i);
-    const matchLakh = lower.match(/(\d+(?:\.\d+)?)\s*l/i);
+    const matchUnderK = lower.match(/(?:under|below|budget(?:\s*of|\s*is|\s*under)?)\s*₹?\s*(\d+(?:\.\d+)?)\s*k\b/i);
+    const matchUnderL = lower.match(/(?:under|below|budget(?:\s*of|\s*is|\s*under)?)\s*₹?\s*(\d+(?:\.\d+)?)\s*l(?:akh)?\b/i);
+    const matchUnderDigits = lower.match(/(?:under|below|budget(?:\s*of|\s*is|\s*under)?)\s*₹?\s*(\d[\d,]*)/i);
+    const matchStandaloneK = lower.match(/(\d+(?:\.\d+)?)\s*k\b/i);
+    const matchStandaloneL = lower.match(/(\d+(?:\.\d+)?)\s*l(?:akh)?\b/i);
+    const matchStandaloneRupees = lower.match(/₹\s*(\d[\d,]*)/i);
 
-    if (matchUnder) {
-      parsedBudget = parseInt(matchUnder[1].replace(/,/g, ''), 10);
-    } else if (matchK) {
-      parsedBudget = parseInt(matchK[1], 10) * 1000;
-    } else if (matchLakh) {
-      parsedBudget = Math.round(parseFloat(matchLakh[1]) * 100000);
+    if (matchUnderK) {
+      parsedBudget = Math.round(parseFloat(matchUnderK[1]) * 1000);
+    } else if (matchUnderL) {
+      parsedBudget = Math.round(parseFloat(matchUnderL[1]) * 100000);
+    } else if (matchUnderDigits && parseInt(matchUnderDigits[1].replace(/,/g, ''), 10) > 100) {
+      parsedBudget = parseInt(matchUnderDigits[1].replace(/,/g, ''), 10);
+    } else if (matchStandaloneK) {
+      parsedBudget = Math.round(parseFloat(matchStandaloneK[1]) * 1000);
+    } else if (matchStandaloneL) {
+      parsedBudget = Math.round(parseFloat(matchStandaloneL[1]) * 100000);
+    } else if (matchStandaloneRupees) {
+      parsedBudget = parseInt(matchStandaloneRupees[1].replace(/,/g, ''), 10);
     }
 
     // Identify category & preference keywords
-    const isLaptop = lower.includes('laptop') || lower.includes('notebook') || lower.includes('xps') || lower.includes('zenbook') || lower.includes('framework');
+    const isLaptop = lower.includes('laptop') || lower.includes('notebook') || lower.includes('xps') || lower.includes('zenbook') || lower.includes('framework') || lower.includes('ideapad');
     const isCoffee = lower.includes('coffee') || lower.includes('bean') || lower.includes('brewer') || lower.includes('restock');
     const isBedding = lower.includes('linen') || lower.includes('sheet') || lower.includes('bed') || lower.includes('tekla');
     const isTableware = lower.includes('mug') || lower.includes('shelf') || lower.includes('clock');
@@ -318,11 +327,13 @@ export default function Screen1_Home({
     } else if (isLaptop) {
       matchedProducts = MASTER_CATALOG.filter((p) => p.category === 'Hardware');
       if (parsedBudget) {
-        // Find matching within or closest to budget
-        matchedProducts = matchedProducts.filter((p) => p.price <= parsedBudget);
-        if (matchedProducts.length === 0) {
-          // If all are higher, show the closest
-          matchedProducts = MASTER_CATALOG.filter((p) => p.category === 'Hardware' && p.price <= 75000);
+        // Find matching within budget, sorted by closest to budget descending
+        const withinBudget = matchedProducts.filter((p) => p.price <= parsedBudget).sort((a, b) => b.price - a.price);
+        if (withinBudget.length > 0) {
+          matchedProducts = withinBudget;
+        } else {
+          // If no item is <= parsedBudget, sort by ascending price so closest affordable option is shown first
+          matchedProducts = [...matchedProducts].sort((a, b) => a.price - b.price);
         }
       }
     } else if (isCoffee) {
@@ -376,6 +387,8 @@ export default function Screen1_Home({
       reasonText = `Pre-execution governance verified: Authentic partner credentials, zero surge markups, and ₹${itemPrice.toLocaleString('en-IN')} is within budget limits.`;
       if (isExplicitBuy) {
         ariaMessage = `Pre-execution checks verified! Auto-authorized order for ${primaryItem.name} at ₹${itemPrice.toLocaleString('en-IN')}. Verified merchant dispatched with 15-minute peace-of-mind hold.`;
+      } else if (parsedBudget) {
+        ariaMessage = `I found ${primaryItem.name} at ₹${itemPrice.toLocaleString('en-IN')}, strictly within your ₹${parsedBudget.toLocaleString('en-IN')} requested budget limit and pre-audited against your quiet preferences.`;
       } else {
         ariaMessage = `I found ${matchedProducts.length} verified option${matchedProducts.length > 1 ? 's' : ''} matching your request. Each option is pre-audited against your quiet preferences and verified within your budget limits.`;
       }
@@ -1456,7 +1469,7 @@ export default function Screen1_Home({
 
                   {/* Responsive Product Cards Grid */}
                   <div className="agent-product-grid">
-                    {agentActionData.matchedProducts.map((prod) => {
+                    {agentActionData.matchedProducts.map((prod, prodIdx) => {
                       const isOverCap = prod.price > monthlyCap;
                       const isOverThresh = prod.price > approvalThreshold;
 
@@ -1470,6 +1483,7 @@ export default function Screen1_Home({
                             border: `1.5px solid ${isOverCap ? '#FCA5A5' : isOverThresh ? '#FCD34D' : 'var(--border-cream)'}`,
                             overflow: 'hidden',
                             boxShadow: 'var(--shadow-warm-sm)',
+                            animationDelay: `${prodIdx * 80}ms`,
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',

@@ -224,6 +224,25 @@ export default function Screen9_HowAriaWorks({ onNavigateToScreen }) {
             onTrackOrder={() => onNavigateToScreen('orders')}
           />
         </div>
+
+        {/* Back to Shopping CTA */}
+        <div style={{
+          textAlign: 'center',
+          marginTop: '44px',
+          paddingTop: '36px',
+          borderTop: '1px solid var(--border-cream)'
+        }}>
+          <p style={{ fontSize: '15px', color: 'var(--ink-secondary)', marginBottom: '18px' }}>
+            Ready to experience mindful commerce with Aria?
+          </p>
+          <button
+            className="pill-button-primary"
+            onClick={() => onNavigateToScreen('explore')}
+            style={{ padding: '14px 32px', fontSize: '15px' }}
+          >
+            <span>Start Shopping with Aria</span>
+          </button>
+        </div>
       </div>
     </div>
   );

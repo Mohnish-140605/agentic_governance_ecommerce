@@ -31,7 +31,8 @@ export default function Header({
   onOpenAddListing,
   onSwitchRole,
   cartCount = 2,
-  pendingApprovalsCount = 1
+  pendingApprovalsCount = 1,
+  pendingSellerOrdersCount = 0
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -564,7 +565,10 @@ export default function Header({
         }}>
           {navItems.map((item) => {
             const isActive = activeScreen === item.id;
-            const hasBadge = item.badgeKey === 'approvals' && pendingApprovalsCount > 0;
+            const hasBadge = 
+              (item.badgeKey === 'approvals' && pendingApprovalsCount > 0) ||
+              (item.badgeKey === 'sellerOrders' && pendingSellerOrdersCount > 0);
+            const badgeCount = item.badgeKey === 'approvals' ? pendingApprovalsCount : pendingSellerOrdersCount;
             return (
               <button
                 key={item.id}
@@ -597,8 +601,7 @@ export default function Header({
                     borderRadius: '9999px',
                     border: '1px solid var(--butter-yellow-border)'
                   }}>
-                    {pendingApprovalsCount}
-                  </span>
+                    {badgeCount}                  </span>
                 )}
               </button>
             );

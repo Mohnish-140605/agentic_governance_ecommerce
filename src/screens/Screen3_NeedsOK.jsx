@@ -24,11 +24,12 @@ export default function Screen3_NeedsOK({
   rules
 }) {
   const userName = currentUser ? currentUser.name.split(' ')[0] : 'Priya';
-  const pendingOrder = (orders && orders.find(o => o.id === 'CRN-88421')) || (orders && orders.find(o => o.status === 'needs_ok')) || {
+  const pendingOrder = (orders && orders.find(o => o.status === 'needs_ok')) || (orders && orders.find(o => o.id === 'CRN-88421')) || (orders && orders[0]) || {
     id: 'CRN-88421',
     item: 'Dell XPS 13 Plus',
     price: 120000,
-    merchant: 'Dell Direct Official Flagship'
+    merchant: 'Dell Direct Official Flagship',
+    image: '/assets/dell_xps.jpg'
   };
   const orderId = pendingOrder.id;
 
@@ -159,7 +160,7 @@ export default function Screen3_NeedsOK({
               <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: 'var(--forest-green)' }}>
                 ✦ EDITORIAL SELECTION #084
               </span>
-              <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>Dell Flagship Store</span>
+              <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>{pendingOrder.merchant || 'Dell Flagship Store'}</span>
             </div>
 
             {/* Large Product Photo */}
@@ -172,8 +173,8 @@ export default function Screen3_NeedsOK({
               marginBottom: '20px'
             }}>
               <img
-                src="/assets/dell_xps.jpg"
-                alt="Dell XPS 13 Plus"
+                src={pendingOrder.image || '/assets/dell_xps.jpg'}
+                alt={pendingOrder.item}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
               <span style={{
@@ -195,15 +196,15 @@ export default function Screen3_NeedsOK({
             {/* Product Title & Price */}
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '6px' }}>
               <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 600 }}>
-                Dell XPS 13 Plus
+                {pendingOrder.item}
               </h2>
               <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--forest-green)' }}>
-                ₹1,20,000
+                ₹{pendingOrder.price.toLocaleString('en-IN')}
               </div>
             </div>
 
             <p style={{ fontSize: '14px', color: 'var(--ink-secondary)', marginBottom: '18px' }}>
-              Pure White Edition · CNC Machined Aluminum & Gorilla Glass
+              {pendingOrder.subtitle || 'Pure White Edition · CNC Machined Aluminum & Gorilla Glass'}
             </p>
 
             {/* Verified Specifications Table */}
@@ -220,37 +221,56 @@ export default function Screen3_NeedsOK({
                 VERIFIED SPECIFICATIONS
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
-                  <Cpu size={14} color="var(--forest-green)" />
-                  <span>Processor</span>
-                </div>
-                <strong style={{ color: 'var(--ink)' }}>Intel Core i7-1360P (13th Gen)</strong>
-              </div>
+              {/* Dynamically render spec rows from pendingOrder.subtitle, or fallback to Dell XPS specs */}
+              {pendingOrder.subtitle ? (
+                // Split subtitle by · and render each spec as a row
+                pendingOrder.subtitle.split('·').map((spec, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
+                      {idx === 0 ? <Cpu size={14} color="var(--forest-green)" /> :
+                       idx === 1 ? <HardDrive size={14} color="var(--forest-green)" /> :
+                       idx === 2 ? <Monitor size={14} color="var(--forest-green)" /> :
+                       <Award size={14} color="var(--forest-green)" />}
+                      <span>Spec {idx + 1}</span>
+                    </div>
+                    <strong style={{ color: 'var(--ink)', textAlign: 'right', maxWidth: '55%' }}>{spec.trim()}</strong>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
+                      <Cpu size={14} color="var(--forest-green)" />
+                      <span>Processor</span>
+                    </div>
+                    <strong style={{ color: 'var(--ink)' }}>Intel Core i7-1360P (13th Gen)</strong>
+                  </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
-                  <HardDrive size={14} color="var(--forest-green)" />
-                  <span>Memory & Drive</span>
-                </div>
-                <strong style={{ color: 'var(--ink)' }}>32GB LPDDR5 · 1TB NVMe PCIe 4</strong>
-              </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
+                      <HardDrive size={14} color="var(--forest-green)" />
+                      <span>Memory &amp; Drive</span>
+                    </div>
+                    <strong style={{ color: 'var(--ink)' }}>32GB LPDDR5 · 1TB NVMe PCIe 4</strong>
+                  </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
-                  <Monitor size={14} color="var(--forest-green)" />
-                  <span>Display</span>
-                </div>
-                <strong style={{ color: 'var(--ink)' }}>3.5K OLED InfinityEdge (Touch)</strong>
-              </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
+                      <Monitor size={14} color="var(--forest-green)" />
+                      <span>Display</span>
+                    </div>
+                    <strong style={{ color: 'var(--ink)' }}>3.5K OLED InfinityEdge (Touch)</strong>
+                  </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
-                  <Award size={14} color="var(--forest-green)" />
-                  <span>Warranty & Origin</span>
-                </div>
-                <strong style={{ color: 'var(--ink)' }}>Dell Direct Official · 3-Yr Onsite</strong>
-              </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
+                      <Award size={14} color="var(--forest-green)" />
+                      <span>Warranty &amp; Origin</span>
+                    </div>
+                    <strong style={{ color: 'var(--ink)' }}>Dell Direct Official · 3-Yr Onsite</strong>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Sustainability Note */}
@@ -288,7 +308,7 @@ export default function Screen3_NeedsOK({
                     TRUST LEDGER INTENT
                   </div>
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 600 }}>
-                    Order Intent #CRN-88421
+                    Order Intent #{orderId}
                   </div>
                 </div>
 
@@ -302,7 +322,7 @@ export default function Screen3_NeedsOK({
               <div className="trust-receipt-details">
                 <div className="receipt-meta-box">
                   <div className="receipt-meta-label">Item Cost</div>
-                  <div className="receipt-meta-value" style={{ color: 'var(--ink)' }}>₹1,20,000</div>
+                  <div className="receipt-meta-value" style={{ color: 'var(--ink)' }}>₹{pendingOrder.price.toLocaleString('en-IN')}</div>
                   <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>GST Included (18%)</div>
                 </div>
 
@@ -314,8 +334,8 @@ export default function Screen3_NeedsOK({
 
                 <div className="receipt-meta-box">
                   <div className="receipt-meta-label">Destination</div>
-                  <div className="receipt-meta-value">Jor Bagh</div>
-                  <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Priya's Residence</div>
+                  <div className="receipt-meta-value">{pendingOrder.destination || 'Jor Bagh'}</div>
+                  <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>{userName}'s Residence</div>
                 </div>
               </div>
 
@@ -405,7 +425,7 @@ export default function Screen3_NeedsOK({
                       onClick={handleApprove}
                       style={{ padding: '16px 24px', fontSize: '16px' }}
                     >
-                      <span>Yes, order it (₹1,20,000)</span>
+                      <span>Yes, order it (₹{pendingOrder.price.toLocaleString('en-IN')})</span>
                       <ArrowRight size={18} />
                     </button>
 
@@ -421,7 +441,7 @@ export default function Screen3_NeedsOK({
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--forest-green)', fontWeight: 600 }}>
                       <Check size={18} />
-                      <span>Order #CRN-88421 placed successfully!</span>
+                      <span>Order #{orderId} placed successfully!</span>
                     </div>
                     <button
                       className="pill-button-primary"

@@ -165,7 +165,7 @@ export default function Screen6_Rules({
                 marginBottom: '16px'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', marginBottom: '8px' }}>
-                  <span style={{ color: 'var(--ink-secondary)' }}>Current Cycle Usage (March)</span>
+                  <span style={{ color: 'var(--ink-secondary)' }}>Current Cycle Usage ({new Date().toLocaleString('en-US', { month: 'long' })})</span>
                   <strong style={{ color: 'var(--ink)' }}>₹{rules.currentUsage.toLocaleString('en-IN')} of ₹{rules.monthlyCap.toLocaleString('en-IN')}</strong>
                 </div>
 
@@ -398,7 +398,7 @@ export default function Screen6_Rules({
                 <span>{saveSuccess ? 'Saved & Deployed!' : 'Save Rule Preferences'}</span>
               </button>
               <span style={{ fontSize: '12.5px', color: 'var(--ink-muted)' }}>
-                Last updated today, 10:42 AM
+                Last updated {new Date().toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} today
               </span>
             </div>
           </div>

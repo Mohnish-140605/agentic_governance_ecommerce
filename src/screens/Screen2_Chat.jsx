@@ -19,7 +19,42 @@ function createInitialThread(prompt, userName) {
   }
 
   const lower = prompt.toLowerCase();
-  if (lower.includes('framework') || lower.includes('laptop 13')) {
+  
+  // Specific Check: Under 30k budget
+  if (lower.includes('30k') || lower.includes('30,000') || lower.includes('30000') || (lower.includes('laptop') && (lower.includes('30') || lower.includes('budget')))) {
+    return [
+      {
+        id: ++msgCounter,
+        sender: 'user',
+        name: userName,
+        time: 'Just now',
+        text: prompt
+      },
+      {
+        id: ++msgCounter,
+        sender: 'aria',
+        name: 'Aria',
+        time: 'Just now',
+        badge: 'Rule Checked',
+        text: `I found the Lenovo IdeaPad Slim 3 (Silent Profile). Featuring thermal acoustic damping, AMD Athlon Silver, and 512GB NVMe SSD at ₹28,990 — comfortably under your ₹30,000 requested budget cap.`
+      },
+      {
+        id: ++msgCounter,
+        sender: 'system_card',
+        cardType: 'product',
+        item: {
+          name: 'Lenovo IdeaPad Slim 3 (Silent Profile)',
+          tag: 'VERIFIED QUIET HARDWARE',
+          partner: 'CERTIFIED ZERO-NOISE LABS',
+          batch: 'Batch #LP-302',
+          specs: '15.6" FHD Anti-glare · AMD Athlon Silver · 8GB DDR4 · 512GB NVMe SSD',
+          price: 28990,
+          delivery: 'Tomorrow, 4:00 PM',
+          image: '/assets/framework_laptop.jpg'
+        }
+      }
+    ];
+  } else if (lower.includes('framework') || lower.includes('laptop 13')) {
     return [
       {
         id: ++msgCounter,
@@ -73,6 +108,72 @@ function createInitialThread(prompt, userName) {
         }
       }
     ];
+  } else if (lower.includes('xps') || lower.includes('1.2l') || lower.includes('1,20,000') || lower.includes('120000')) {
+    return [
+      {
+        id: ++msgCounter,
+        sender: 'user',
+        name: userName,
+        time: 'Just now',
+        text: prompt
+      },
+      {
+        id: ++msgCounter,
+        sender: 'aria',
+        name: 'Aria',
+        time: 'Just now',
+        badge: 'Needs Approval',
+        text: `The Dell XPS 13 Plus is priced at ₹1,20,000. While permitted by your wallet allowance, this exceeds your autonomous threshold of ₹1,00,000. It is held on a 15-minute peace-of-mind hold awaiting your confirmation.`
+      },
+      {
+        id: ++msgCounter,
+        sender: 'system_card',
+        cardType: 'product',
+        item: {
+          name: 'Dell XPS 13 Plus',
+          tag: 'REQUIRES HUMAN OK',
+          partner: 'DELL DIRECT OFFICIAL FLAGSHIP',
+          batch: 'Batch #XPS-992',
+          specs: 'Intel Core i7 · 16GB LPDDR5 · 4K Touch OLED · CNC Machined Aluminum',
+          price: 120000,
+          delivery: 'Thu, 24 Oct',
+          image: '/assets/dell_xps.jpg'
+        }
+      }
+    ];
+  } else if (lower.includes('gaming') || lower.includes('75,000') || lower.includes('75000') || lower.includes('alienware')) {
+    return [
+      {
+        id: ++msgCounter,
+        sender: 'user',
+        name: userName,
+        time: 'Just now',
+        text: prompt
+      },
+      {
+        id: ++msgCounter,
+        sender: 'aria',
+        name: 'Aria',
+        time: 'Just now',
+        badge: 'Blocked by Policy',
+        text: `The Alienware m16 (₹75,000) exceeds your self-imposed monthly ceiling of ₹50,000. The Pre-Execution Governance Engine has halted this transaction safely. Zero funds debited.`
+      },
+      {
+        id: ++msgCounter,
+        sender: 'system_card',
+        cardType: 'product',
+        item: {
+          name: 'Alienware m16 Performance Laptop',
+          tag: 'BLOCKED · OVER SPENDING CAP',
+          partner: 'ALIENWARE DIRECT PARTNER',
+          batch: 'Rule #02 Violation',
+          specs: 'Intel Core i7 · RTX 4060 GPU · 32GB RAM · 1TB NVMe · 240Hz QHD+',
+          price: 75000,
+          delivery: 'Delivery Blocked Pre-emptively',
+          image: '/assets/dell_xps.jpg'
+        }
+      }
+    ];
   } else if (lower.includes('laptop') || lower.includes('60,000') || lower.includes('study')) {
     return [
       {
@@ -102,7 +203,7 @@ function createInitialThread(prompt, userName) {
           specs: 'Whisper-quiet fan profile, 2.8K 90Hz OLED, 16GB LPDDR5, all-day battery life.',
           price: 58990,
           delivery: 'Wed, 23 Oct',
-          image: '/assets/framework_laptop.jpg'
+          image: '/assets/zenbook.jpg'
         }
       }
     ];
@@ -215,6 +316,8 @@ export default function Screen2_Chat({
         replyText = `Your monthly spending cap is ₹${cap} for regular purchases. All transactions are audited and held strictly within your personal boundaries.`;
       } else if (lower.includes('cancel')) {
         replyText = "Your 15-minute tranquility hold is active. With one tap, I can release this order back to inventory without any transaction fee.";
+      } else if (lower.includes('30k') || lower.includes('30,000') || lower.includes('30000') || (lower.includes('laptop') && (lower.includes('30') || lower.includes('budget')))) {
+        replyText = "I found the Lenovo IdeaPad Slim 3 (Silent Profile) at ₹28,990. It is pre-audited, features acoustic fan damping, and stays comfortably within your ₹30,000 budget cap.";
       } else if (lower.includes('laptop') || lower.includes('60,000') || lower.includes('study')) {
         replyText = "I found the ASUS ZenBook 14 OLED and Acer Swift Go 14. Both feature whisper-quiet fans, 16GB RAM, and fall safely under your ₹60,000 limit with verified merchant authenticity.";
       } else if (lower.includes('coffee') || lower.includes('bean') || lower.includes('restock')) {

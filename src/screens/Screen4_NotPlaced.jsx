@@ -230,7 +230,7 @@ export default function Screen4_NotPlaced({
                   className="pill-button-primary"
                   onClick={() => {
                     onAskAriaAboutProduct('Could you help me find great laptop options strictly within my ₹50,000 cap?');
-                    onNavigateToScreen('chat');
+                    onNavigateToScreen('explore');
                   }}
                   style={{ fontSize: '13.5px' }}
                 >
@@ -373,7 +373,7 @@ export default function Screen4_NotPlaced({
                       className="pill-button-primary"
                       onClick={() => {
                         onAskAriaAboutProduct(`Let's order the ${prod.name} for ₹${prod.price.toLocaleString('en-IN')}`);
-                        onNavigateToScreen('chat');
+                        onNavigateToScreen('explore');
                       }}
                       style={{ padding: '8px 16px', fontSize: '13px' }}
                     >

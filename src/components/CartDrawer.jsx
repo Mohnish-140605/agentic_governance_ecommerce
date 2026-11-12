@@ -147,7 +147,7 @@ export default function CartDrawer({
             className="pill-button-primary" 
             style={{ width: '100%' }}
             onClick={() => {
-              onNavigateToScreen('chat');
+              onNavigateToScreen('explore');
               onClose();
             }}
           >

@@ -14,6 +14,7 @@ export default function SellerOrderView({
 }) {
   const [activeTab, setActiveTab] = useState('all');
 
+  const loc = currentLocation || {};
   const sellerOrders = [
     {
       id: 'CRN-ORD-8812',
@@ -23,8 +24,8 @@ export default function SellerOrderView({
       total: 3450,
       escrowStatus: 'Tranquility Hold (12m left)',
       status: 'hold',
-      address: `${currentLocation.locality}, ${currentLocation.city}`,
-      dispatchHub: currentLocation.hub,
+      address: loc.locality ? `${loc.locality}, ${loc.city}` : (loc.city || 'Delhi Hub'),
+      dispatchHub: loc.hub || 'Delhi Logistics Hub',
       stamps: ['Origin OEM Verified', 'Direct Batch #401', 'No Middleman']
     },
     {

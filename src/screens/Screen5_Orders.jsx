@@ -159,8 +159,9 @@ export default function Screen5_Orders({
                 {/* Left: Product photo & Basic info */}
                 <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
                   <img
-                    src={order.image}
+                    src={order.image || '/assets/framework_laptop.jpg'}
                     alt={order.item}
+                    onError={(e) => { e.currentTarget.src = '/assets/framework_laptop.jpg'; }}
                     style={{
                       width: '100px',
                       height: '100px',
