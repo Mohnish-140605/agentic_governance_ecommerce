@@ -95,3 +95,4 @@ class SLAMonitor:
 
 # Global singleton monitor
 sla_monitor = SLAMonitor()
+

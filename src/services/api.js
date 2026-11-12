@@ -84,3 +84,21 @@ export async function sendHumanApproval(proposalId, token, decision = 'APPROVE')
   }
   return null;
 }
+
+export async function updatePolicyRules(rules) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/rules/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rules),
+      signal: AbortSignal.timeout(3000)
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Offline fallback
+  }
+  return null;
+}
+

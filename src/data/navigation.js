@@ -13,6 +13,13 @@ export const SELLER_NAV_SCREENS = [
   { id: 'seller_orders', label: 'Buyer Orders & Escrow', subtitle: 'Fulfillment & Tranquility Holds', badgeKey: 'sellerOrders' }
 ];
 
+/** Title-case a stored first name so "MOHNISH" renders as "Mohnish". */
+export function formatFirstName(name, fallback = 'there') {
+  const raw = String(name || '').trim().split(/\s+/)[0];
+  if (!raw) return fallback;
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
 export const DEFAULT_USER = {
   id: 'usr_priya_google',
   name: 'Priya Sharma',

@@ -240,3 +240,4 @@ def update_policy_rules(payload: Dict[str, Any] = Body(...)):
         "monthlyCap": current_rule.monthly_cap,
         "approvalThreshold": current_rule.approval_threshold
     }
+

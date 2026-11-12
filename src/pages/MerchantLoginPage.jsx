@@ -47,11 +47,11 @@ const KEYFRAMES = `
 `;
 
 const FEATURES = [
-  { icon: <Store size={15} />, title: 'Artisan Storefront', desc: 'Beautiful product listings & catalog' },
-  { icon: <BarChart3 size={15} />, title: 'Store Health Analytics', desc: 'Revenue, conversion & trend metrics' },
-  { icon: <Lock size={15} />, title: 'Escrow & Payments', desc: 'Secure hold-and-release transactions' },
-  { icon: <Layers size={15} />, title: 'Inventory Management', desc: 'Track stock, variants & reorders' },
-  { icon: <Zap size={15} />, title: 'Fast Order Fulfillment', desc: 'Streamlined packaging & dispatch' },
+  { icon: <Store size={15} />, title: 'Merchant agent', desc: 'Price, promotion, and inventory proposals' },
+  { icon: <Lock size={15} />, title: 'Least privilege', desc: 'Only actions this role is allowed to take' },
+  { icon: <Layers size={15} />, title: 'Same checkpoint', desc: 'Merchant actions use the buyer governance engine' },
+  { icon: <BarChart3 size={15} />, title: 'Conflict check', desc: 'Buyer budget and merchant price are compared' },
+  { icon: <Zap size={15} />, title: 'Audited changes', desc: 'Catalog edits keep a decision and an outcome' },
 ];
 
 const STATS = [
@@ -162,7 +162,7 @@ export default function MerchantLoginPage({ onBack, onSignIn }) {
               Merchant Portal
             </h1>
             <p style={{ fontSize: '14px', color: 'var(--ink-secondary)', lineHeight: 1.55 }}>
-              Sign in to manage your artisan store, track orders, and grow your business on Cairn.
+              Sign in to propose catalog changes through the shared governance checkpoint.
             </p>
           </div>
 
@@ -303,13 +303,13 @@ export default function MerchantLoginPage({ onBack, onSignIn }) {
             fontWeight: 600, letterSpacing: '-0.028em', marginBottom: '12px',
             textAlign: 'center', lineHeight: 1.2
           }}>
-            Grow Your Artisan Business
+            Propose, then check
           </h2>
           <p style={{
             fontSize: '14.5px', color: 'rgba(255,255,255,0.7)',
             lineHeight: 1.7, textAlign: 'center', marginBottom: '32px'
           }}>
-            Powerful tools for independent makers and craft merchants to thrive on Cairn.
+            Price and inventory changes pass the same engine before they apply.
           </p>
 
           {/* Stats row */}

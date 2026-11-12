@@ -17,6 +17,7 @@ except ImportError:
 from ..models.schemas import ActionProposal, GovernanceResult, GovernanceDecision
 from .buyer_agent import BuyerAgent
 from .merchant_agent import MerchantAgent
+from .llm_client import llm_client
 from ..governance.engine import GovernanceEngine
 from ..governance.policies import PolicyRule
 
@@ -26,6 +27,7 @@ class AgentWorkflowState(TypedDict):
     proposal: Optional[ActionProposal]
     merchant_data: Optional[Dict[str, Any]]
     governance_result: Optional[GovernanceResult]
+    llm_telemetry: Optional[Dict[str, Any]]
     final_status: str
     error: Optional[str]
     total_latency_ms: float
@@ -77,8 +79,15 @@ class MultiAgentCommerceWorkflow:
 
     def _node_buyer_intent(self, state: AgentWorkflowState) -> AgentWorkflowState:
         query = state["user_query"]
+        llm_thought = llm_client.generate_agent_thought(
+            prompt=f"Parse shopping intent and acoustic constraints for: {query}",
+            system_prompt="You are Aria, a mindful Buyer Agent fiduciary representing the customer."
+        )
         proposal = self.buyer_agent.search_and_propose(query)
+        proposal.metadata["llm_provider"] = llm_thought["provider"]
+        proposal.metadata["llm_thought"] = llm_thought["text"]
         state["proposal"] = proposal
+        state["llm_telemetry"] = llm_thought
         return state
 
     def _node_merchant_check(self, state: AgentWorkflowState) -> AgentWorkflowState:
@@ -111,6 +120,7 @@ class MultiAgentCommerceWorkflow:
             "proposal": None,
             "merchant_data": None,
             "governance_result": None,
+            "llm_telemetry": None,
             "final_status": "PENDING",
             "error": None,
             "total_latency_ms": 0.0
@@ -129,3 +139,4 @@ class MultiAgentCommerceWorkflow:
 
         final_state["total_latency_ms"] = round((time.perf_counter() - start_time) * 1000.0, 2)
         return final_state
+

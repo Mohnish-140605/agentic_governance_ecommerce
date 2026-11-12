@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui';
 import TrustReceipt from '../components/TrustReceipt';
+import { formatFirstName } from '../data/navigation';
+import { sendAgentChat } from '../services/api';
 
 let homeMsgCounter = 600;
 
@@ -239,7 +241,7 @@ export default function Screen1_Home({
   setChatPrompt
 }) {
   const [promptInput, setPromptInput] = useState('');
-  const userName = currentUser ? currentUser.name.split(' ')[0] : 'MOHNISH';
+  const userName = formatFirstName(currentUser?.name, 'Mohnish');
 
   // ── Integrated Aria Activity & Conversation State ───────────────────────────
   const [chatOpen, setChatOpen] = useState(false);
@@ -258,12 +260,12 @@ export default function Screen1_Home({
 
   // Example prompts directly aligned with user expectations and Section 12 test scenarios
   const quickPrompts = [
-    { label: '"Find me a quiet study laptop under ₹60,000"', prompt: "Find me a quiet study laptop under ₹60,000" },
-    { label: '"Linen sheets for guest room"', prompt: "Linen sheets for guest room" },
-    { label: '"Restock roasted coffee beans"', prompt: "Restock roasted coffee beans" },
-    { label: 'Laptop under ₹30k (Auto-Execute)', prompt: "Find me a quiet study laptop under ₹30,000" },
-    { label: 'Dell XPS 13 ₹1.2L (Needs OK)', prompt: "I want to order the Dell XPS 13 Plus for ₹1,20,000" },
-    { label: 'Gaming Laptop ₹75k (Block Policy)', prompt: "Could you buy the Gaming Laptop for ₹75,000?" }
+    { label: 'Quiet laptop under ₹60k', prompt: "Find me a quiet study laptop under ₹60,000", tone: 'neutral' },
+    { label: 'Linen for the guest room', prompt: "Linen sheets for guest room", tone: 'neutral' },
+    { label: 'Restock coffee beans', prompt: "Restock roasted coffee beans", tone: 'neutral' },
+    { label: '₹30k laptop · Auto-execute', prompt: "Find me a quiet study laptop under ₹30,000", tone: 'go' },
+    { label: 'Dell XPS ₹1.2L · Needs OK', prompt: "I want to order the Dell XPS 13 Plus for ₹1,20,000", tone: 'hold' },
+    { label: 'Gaming laptop ₹75k · Block', prompt: "Could you buy the Gaming Laptop for ₹75,000?", tone: 'stop' }
   ];
 
   const followUpChips = [
@@ -419,6 +421,19 @@ export default function Screen1_Home({
     };
 
     setAgentActionData(executionPackage);
+
+    // Asynchronously synchronize with FastAPI Governance Engine
+    sendAgentChat(queryText, currentUser?.id || 'usr_priya').then((serverData) => {
+      if (serverData?.workflow_state?.governance_result) {
+        const gov = serverData.workflow_state.governance_result;
+        if (gov.audit_hash) {
+          executionPackage.receiptData = {
+            ...executionPackage.receiptData,
+            sha256: gov.audit_hash.slice(0, 24) + '...' + gov.audit_hash.slice(-4)
+          };
+        }
+      }
+    }).catch(() => {});
 
     // Append User Message to conversation
     const userMsg = {
@@ -612,18 +627,11 @@ export default function Screen1_Home({
       <section style={{
         maxWidth: 'var(--max-width)',
         margin: '0 auto',
-        padding: 'clamp(28px, 5vw, 56px) clamp(16px, 3vw, 24px) clamp(24px, 4vw, 36px)'
+        padding: 'clamp(28px, 4vw, 48px) clamp(16px, 3vw, 24px) 8px'
       }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-          gap: 'clamp(24px, 4vw, 44px)',
-          alignItems: 'center'
-        }}>
-          {/* Left Hero Column */}
+        <div className="hero-intro">
           <div>
-            {/* Badges */}
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -632,12 +640,12 @@ export default function Screen1_Home({
                 color: 'var(--forest-green)',
                 padding: '6px 14px',
                 borderRadius: 'var(--radius-pill)',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                letterSpacing: '0.02em'
+                fontSize: '12px',
+                fontWeight: 650,
+                letterSpacing: '0.04em'
               }}>
                 <Sparkles size={14} />
-                <span>PRE-EXECUTION GOVERNANCE FRAMEWORK</span>
+                <span>BUYER AGENT · GOVERNANCE ENGINE</span>
               </div>
 
               {currentLocation && (
@@ -656,201 +664,135 @@ export default function Screen1_Home({
                 }}>
                   <MapPin size={12} color="var(--forest-green)" />
                   <span style={{ color: 'var(--forest-green)', fontWeight: 700 }}>
-                    ⚡ {currentLocation.deliveryTime || '15 mins'}
+                    {currentLocation.deliveryTime || '15 mins'}
                   </span>
-                  <span style={{ color: 'var(--ink-muted)' }}>•</span>
+                  <span style={{ color: 'var(--ink-muted)' }}>·</span>
                   <span>{currentLocation.city}</span>
                 </div>
               )}
             </div>
 
-            {/* Editorial Serif Greeting */}
             <h1 style={{
               fontFamily: 'var(--font-serif)',
-              fontSize: 'clamp(2.5rem, 5vw, 3.8rem)',
-              lineHeight: 1.1,
+              fontSize: 'clamp(2.4rem, 4.4vw, 3.6rem)',
+              lineHeight: 1.08,
               fontWeight: 500,
               color: 'var(--ink)',
-              marginBottom: '18px',
+              marginBottom: '16px',
               letterSpacing: '-0.03em'
             }}>
-              Hi {userName}, <span style={{ fontStyle: 'italic', fontWeight: 400 }}>what do you need today?</span>
+              Hi {userName}, <span style={{ fontStyle: 'italic', fontWeight: 400 }}>what should Aria propose?</span>
             </h1>
 
             <p style={{
-              fontSize: '17px',
+              fontSize: '16.5px',
               color: 'var(--ink-secondary)',
               lineHeight: 1.6,
-              marginBottom: '28px',
-              maxWidth: '520px'
+              margin: 0,
+              maxWidth: '560px'
             }}>
-              Aria finds, checks, and orders what you love — governed by deterministic pre-execution safeguards before any money moves.
+              The buyer agent can search, compare, and draft an order. A deterministic governance engine checks identity, budget, and policy, then auto-executes, asks you, or blocks — before any money moves.
             </p>
-
-            {/* Natural-Language Hero Input Bar */}
-            <form onSubmit={handleSubmit} style={{ marginBottom: '18px' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 'var(--radius-pill)',
-                  border: '1.5px solid var(--border-cream)',
-                  boxShadow: 'var(--shadow-warm-md)',
-                  padding: '6px 8px 6px 18px',
-                  transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-                  flexWrap: 'nowrap'
-                }}
-              >
-                <Plus size={18} color="var(--forest-green)" style={{ flexShrink: 0 }} />
-                <input
-                  type="text"
-                  placeholder="What do you need today? e.g., 'Quiet study laptop under ₹60,000'"
-                  value={promptInput}
-                  onChange={(e) => setPromptInput(e.target.value)}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: '15px',
-                    color: 'var(--ink)',
-                    backgroundColor: 'transparent'
-                  }}
-                />
-                <button
-                  type="button"
-                  style={{
-                    padding: '8px',
-                    color: 'var(--ink-muted)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                  title="Voice query"
-                >
-                  <Mic size={18} />
-                </button>
-                <Button
-                  type="submit"
-                  size="md"
-                  icon={<ArrowRight size={15} />}
-                  iconPosition="right"
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: 'var(--radius-pill)',
-                    flexShrink: 0
-                  }}
-                >
-                  Ask Aria
-                </Button>
-              </div>
-            </form>
-
-            {/* Preserved Example Prompts Below Input */}
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--ink-muted)', fontWeight: 500 }}>Try:</span>
-              {quickPrompts.map((p, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    setPromptInput(p.prompt);
-                    runAgentWorkflow(p.prompt);
-                  }}
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid var(--border-cream)',
-                    borderRadius: 'var(--radius-pill)',
-                    padding: '5px 12px',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    color: 'var(--ink)',
-                    cursor: 'pointer',
-                    boxShadow: 'var(--shadow-warm-sm)',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--forest-green-border)';
-                    e.currentTarget.style.backgroundColor = 'var(--bg-cream-subtle)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border-cream)';
-                    e.currentTarget.style.backgroundColor = '#FFFFFF';
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* Right Hero Lifestyle Photography with Overlay */}
-          <div style={{ position: 'relative' }}>
-            <div style={{
-              borderRadius: '28px',
-              overflow: 'hidden',
-              boxShadow: 'var(--shadow-warm-lg)',
-              border: '1px solid var(--border-cream)',
-              position: 'relative'
-            }}>
-              <img
-                src="/assets/hero_shopper.jpg"
-                alt="Person relaxing in sunlit room with parcel"
-                onError={(e) => {
-                  e.currentTarget.src = '/assets/kinto_coffee.jpg';
-                }}
-                style={{
-                  width: '100%',
-                  height: 'clamp(280px, 45vw, 450px)',
-                  objectFit: 'cover',
-                  display: 'block'
-                }}
-              />
-              {/* Overlay card */}
-              <div style={{
-                position: 'absolute',
-                bottom: '18px',
-                left: '18px',
-                right: '18px',
-                backgroundColor: 'rgba(255, 255, 255, 0.94)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                borderRadius: '18px',
-                padding: '14px 18px',
-                border: '1px solid var(--border-cream)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                boxShadow: 'var(--shadow-warm-sm)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--forest-green-light)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--forest-green)'
-                  }}>
-                    <ShieldCheck size={18} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>Pre-Execution Governance Active</div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--ink-secondary)' }}>Auto-Execute · Human Approval · Block</div>
+          <aside className="governance-panel" aria-label="How a proposal is decided">
+            <div className="governance-panel-head">
+              <ShieldCheck size={16} />
+              <span>Checkpoint is on</span>
+            </div>
+            <ol className="governance-steps">
+              <li>
+                <span>1</span>
+                <div>
+                  <strong>Buyer agent proposes</strong>
+                  <p>Aria turns the request into a product, a price, and a budget.</p>
+                </div>
+              </li>
+              <li>
+                <span>2</span>
+                <div>
+                  <strong>Governance evaluates</strong>
+                  <p>Identity, authorization, policy, budget, risk, and conflict. The model cannot approve itself.</p>
+                </div>
+              </li>
+              <li>
+                <span>3</span>
+                <div>
+                  <strong>One outcome</strong>
+                  <div className="outcome-pills">
+                    <em className="go">Auto-execute</em>
+                    <em className="hold">Human approval</em>
+                    <em className="stop">Block</em>
                   </div>
                 </div>
-                <span className="badge-review" style={{ fontSize: '11px', padding: '3px 10px' }}>
-                  PROTECTED
-                </span>
-              </div>
-            </div>
-          </div>
+              </li>
+            </ol>
+            <p className="governance-panel-foot">
+              The reason and the result are written to the audit log before any tool runs.
+            </p>
+          </aside>
         </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="hero-composer">
+            <Plus size={18} color="var(--forest-green)" style={{ flexShrink: 0 }} />
+            <input
+              type="text"
+              placeholder="A quiet laptop under ₹60,000"
+              value={promptInput}
+              onChange={(e) => setPromptInput(e.target.value)}
+              aria-label="Tell Aria what you need"
+            />
+            <button
+              type="button"
+              style={{
+                padding: '8px',
+                color: 'var(--ink-muted)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                flexShrink: 0
+              }}
+              title="Voice query"
+            >
+              <Mic size={18} />
+            </button>
+            <Button
+              type="submit"
+              size="md"
+              className="ask-aria-btn"
+              icon={<ArrowRight size={15} />}
+              iconPosition="right"
+              style={{
+                padding: '10px 20px',
+                borderRadius: 'var(--radius-pill)',
+                flexShrink: 0
+              }}
+            >
+              Ask Aria
+            </Button>
+          </div>
+        </form>
+
+        <div className="hero-try">
+          <span style={{ fontSize: '13px', color: 'var(--ink-muted)', fontWeight: 600 }}>Try a governed case</span>
+          {quickPrompts.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              className={`try-chip try-chip-${p.tone}`}
+              onClick={() => {
+                setPromptInput(p.prompt);
+                runAgentWorkflow(p.prompt);
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
       </section>
 
       {/* ─── Integrated Aria Activity & Conversation Panel ─── */}

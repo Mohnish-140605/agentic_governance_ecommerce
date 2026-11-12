@@ -104,3 +104,4 @@ class SLATelemetryRecord(BaseModel):
     llm_target_met: bool = True   # <= 5000ms
     gov_target_met: bool = True   # <= 500ms
     timestamp: float = Field(default_factory=time.time)
+

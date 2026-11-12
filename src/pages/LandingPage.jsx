@@ -96,19 +96,19 @@ function FloatingDot({ style }) {
 }
 
 const BUYER_FEATURES = [
-  { icon: <Sparkles size={13} />, text: 'AI shopping assistant Aria' },
-  { icon: <Shield size={13} />, text: 'Smart approval rules' },
-  { icon: <Package size={13} />, text: 'Real-time order tracking' },
-  { icon: <Zap size={13} />, text: 'Instant checkout flow' },
-  { icon: <Star size={13} />, text: 'Curated artisan products' },
+  { icon: <Sparkles size={13} />, text: 'Buyer agent searches and drafts orders' },
+  { icon: <Shield size={13} />, text: 'Budget and policy checked first' },
+  { icon: <Zap size={13} />, text: 'Auto-execute, approval, or block' },
+  { icon: <Package size={13} />, text: 'Explainable decision on every order' },
+  { icon: <Star size={13} />, text: 'Full audit after execution' },
 ];
 
 const MERCHANT_FEATURES = [
-  { icon: <Store size={13} />, text: 'Manage inventory & listings' },
-  { icon: <BarChart3 size={13} />, text: 'Store health analytics' },
-  { icon: <Lock size={13} />, text: 'Escrow & secure payments' },
-  { icon: <Layers size={13} />, text: 'Artisan product verification' },
-  { icon: <Zap size={13} />, text: 'Fast order fulfillment tools' },
+  { icon: <Store size={13} />, text: 'Merchant agent for price and inventory' },
+  { icon: <Lock size={13} />, text: 'Least-privilege actions only' },
+  { icon: <Layers size={13} />, text: 'Same governance checkpoint as buyers' },
+  { icon: <BarChart3 size={13} />, text: 'Buyer–merchant conflicts flagged' },
+  { icon: <Zap size={13} />, text: 'Every catalog change is audited' },
 ];
 
 // ── Full-screen ripple/flash transition overlay ──────────────────────────────
@@ -410,7 +410,7 @@ export default function LandingPage({ onSelectBuyer, onSelectMerchant }) {
           boxShadow: 'var(--shadow-warm-sm)'
         }}>
           <Sparkles size={14} color="var(--forest-green)" />
-          <span>MINDFUL COMMERCE WITH ARIA</span>
+          <span>AGENTS PROPOSE · GOVERNANCE DECIDES</span>
         </div>
 
         {/* Wordmark with Cairn brand identity */}
@@ -446,8 +446,8 @@ export default function LandingPage({ onSelectBuyer, onSelectMerchant }) {
           lineHeight: 1.65, maxWidth: '540px', margin: '0 auto', fontWeight: 400,
           letterSpacing: '-0.01em'
         }}>
-          Where mindful shopping meets artisan craftsmanship.<br />
-          Choose your experience to begin.
+          A buyer agent and a merchant agent share one checkpoint.
+          Low risk actions run. Medium risk waits for a person. Unauthorized actions are blocked.
         </p>
       </div>
 
@@ -459,8 +459,8 @@ export default function LandingPage({ onSelectBuyer, onSelectMerchant }) {
       }}>
         <RoleCard
           role="buyer"
-          title="Shop as Buyer"
-          tagline="Explore curated products with AI guidance, approval rules, and seamless checkout."
+          title="Enter as Buyer"
+          tagline="Aria proposes what to buy. The governance engine decides whether that order may run."
           emoji="🛒"
           features={BUYER_FEATURES}
           accentColor="var(--coral)"
@@ -469,8 +469,8 @@ export default function LandingPage({ onSelectBuyer, onSelectMerchant }) {
         />
         <RoleCard
           role="merchant"
-          title="Sell as Merchant"
-          tagline="Manage your artisan store, track inventory, view analytics, and grow your business."
+          title="Enter as Merchant"
+          tagline="Price, promotion, and inventory changes pass the same engine before they apply."
           emoji="🏪"
           features={MERCHANT_FEATURES}
           accentColor="var(--forest-green)"

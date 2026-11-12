@@ -39,3 +39,4 @@ class MerchantAgent:
             "partner_verified": True,
             "dispatch_hub": "Delhi Regional Logistics Hub"
         }
+

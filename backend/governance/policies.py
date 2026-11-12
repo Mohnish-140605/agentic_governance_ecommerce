@@ -54,3 +54,4 @@ class PolicyEngine:
 
         # Check 4: Approved within autonomous limits
         return "AUTO_EXECUTE", f"POL-AUTO-CLEARED: Transaction amount ₹{price:,.2f} is within monthly ceiling (₹{monthly_cap:,.2f}) and below autonomous execution threshold (₹{approval_threshold:,.2f}).", evidence
+

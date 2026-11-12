@@ -52,3 +52,4 @@ class AuthorizationManager:
             return True, f"Role '{agent_role.value}' is authorized to perform '{action_type.value}'."
         else:
             return False, f"Least Privilege Violation: '{agent_role.value}' is strictly forbidden from executing '{action_type.value}'."
+

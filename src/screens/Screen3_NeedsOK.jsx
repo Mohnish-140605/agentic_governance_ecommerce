@@ -13,6 +13,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { sendHumanApproval } from '../services/api';
 
 export default function Screen3_NeedsOK({
   orders,
@@ -54,6 +55,7 @@ export default function Screen3_NeedsOK({
 
   const handleApprove = () => {
     setIsApproved(true);
+    sendHumanApproval(orderId, 'AUTH-TOK-CONFIRM', 'APPROVE').catch(() => {});
     confetti({
       particleCount: 80,
       spread: 70,
@@ -70,6 +72,7 @@ export default function Screen3_NeedsOK({
 
   const handleReject = () => {
     setIsReleased(true);
+    sendHumanApproval(orderId, 'AUTH-TOK-CONFIRM', 'REJECT').catch(() => {});
     if (onRejectOrder) {
       onRejectOrder(orderId);
     }

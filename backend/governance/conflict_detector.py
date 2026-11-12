@@ -60,3 +60,4 @@ class ConflictDetector:
             variance_amount=0.0,
             explanation="Zero conflict detected: Pricing aligned with direct OEM benchmarks and user constraints."
         )
+

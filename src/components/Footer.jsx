@@ -34,7 +34,7 @@ export default function Footer({
           />
           <span style={{ color: 'var(--ink-muted)' }}>·</span>
           <span>
-            {dashboardMode === 'customer' ? 'mindful shopping with Aria' : 'maker integrity & escrow platform'}
+            {dashboardMode === 'customer' ? 'governed shopping with Aria' : 'merchant checkpoint & audit'}
           </span>
         </div>
 

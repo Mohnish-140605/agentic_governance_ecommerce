@@ -739,16 +739,21 @@ textarea {
   }
 }
 
-/* Ensure fluid layouts for zoom support */
-* {
-  max-width: 100%;
+/* Keep long copy from blowing out cards. Do not cap every element:
+   a universal max-width clips the hero composer, overlays, and fixed controls. */
+p,
+h1,
+h2,
+h3,
+li,
+td,
+th {
   overflow-wrap: break-word;
-  word-wrap: break-word;
 }
 
-img {
+img,
+video {
   max-width: 100%;
-  height: auto;
 }
 
 /* Prevent overflow in flex containers */
@@ -974,6 +979,319 @@ img[loading='lazy'].loaded {
   .agent-product-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+}
+
+/* ── Explore hero: full-width composer, governance outcomes ── */
+.hero-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: clamp(28px, 4vw, 48px);
+  align-items: center;
+}
+
+.hero-photo {
+  position: relative;
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid var(--border-cream);
+  box-shadow: var(--shadow-warm-lg);
+  min-height: 280px;
+}
+
+.hero-photo img {
+  width: 100%;
+  height: clamp(280px, 34vw, 400px);
+  object-fit: cover;
+  display: block;
+}
+
+.hero-overlay {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  max-width: none;
+  width: auto;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-cream);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: var(--shadow-warm-sm);
+}
+
+.hero-composer {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-cream);
+  box-shadow: var(--shadow-warm-md);
+  padding: 6px 8px 6px 18px;
+}
+
+.hero-composer input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  color: var(--ink);
+  background: transparent;
+}
+
+.hero-try {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.try-chip {
+  background: #fff;
+  border: 1px solid var(--border-cream);
+  border-radius: var(--radius-pill);
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-warm-sm);
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.try-chip-go {
+  background: var(--status-placed-bg);
+  border-color: var(--status-placed-border);
+  color: var(--status-placed-text);
+}
+
+.try-chip-hold {
+  background: var(--status-review-bg);
+  border-color: var(--status-review-border);
+  color: var(--status-review-text);
+}
+
+.try-chip-stop {
+  background: var(--status-failed-bg);
+  border-color: var(--status-failed-border);
+  color: var(--status-failed-text);
+}
+
+.governance-panel {
+  background: #fff;
+  border: 1px solid var(--border-cream);
+  border-radius: 24px;
+  box-shadow: var(--shadow-warm-md);
+  padding: 18px 18px 16px;
+}
+
+.governance-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--forest-green);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.governance-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+}
+
+.governance-steps li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.governance-steps li > span {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--forest-green-light);
+  color: var(--forest-green);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.governance-steps strong {
+  display: block;
+  font-size: 14px;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.governance-steps p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+}
+
+.outcome-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.outcome-pills em {
+  font-style: normal;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.outcome-pills .go {
+  background: var(--status-placed-bg);
+  color: var(--status-placed-text);
+}
+
+.outcome-pills .hold {
+  background: var(--status-review-bg);
+  color: var(--status-review-text);
+}
+
+.outcome-pills .stop {
+  background: var(--status-failed-bg);
+  color: var(--status-failed-text);
+}
+
+.governance-panel-foot {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-cream-subtle);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+}
+
+.header-tagline-text {
+  white-space: nowrap;
+}
+
+.header-user-name {
+  max-width: 108px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.decision-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.decision-card {
+  background: #fff;
+  border: 1px solid var(--border-cream);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-warm-sm);
+}
+
+.decision-card strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.decision-card span {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+}
+
+.app-header-row {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+.app-header-row .search-pill-container {
+  flex: 1 1 280px;
+  min-width: 0;
+  max-width: 420px;
+}
+
+@media (max-width: 980px) {
+  .hero-intro {
+    grid-template-columns: 1fr;
+  }
+
+  .decision-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-header-row {
+    flex-wrap: wrap;
+  }
+
+  .app-header-row .search-pill-container {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .header-tagline-text {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-composer {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    border-radius: 20px;
+    padding: 10px 10px 10px 14px;
+  }
+
+  .hero-composer .ask-aria-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .hero-overlay {
+    flex-wrap: wrap;
   }
 }
 

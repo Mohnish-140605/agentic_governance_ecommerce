@@ -42,3 +42,4 @@ class ExplainabilityGenerator:
             lines.append("Resolution: Action violates self-imposed budget ceiling or authorization rules. Pre-execution block enforced. Zero funds debited.")
 
         return "\n".join(lines)
+

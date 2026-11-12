@@ -61,3 +61,4 @@ def test_audit_logs_endpoint():
     first_log = data["logs"][0]
     assert "sha256_hash" in first_log
     assert len(first_log["sha256_hash"]) == 64
+

@@ -46,11 +46,11 @@ const KEYFRAMES = `
 `;
 
 const FEATURES = [
-  { icon: <Sparkles size={15} />, title: 'Aria AI Assistant', desc: 'Shop smarter with conversational AI' },
-  { icon: <Shield size={15} />, title: 'Approval Rules', desc: 'Safeguard spending with smart rules' },
-  { icon: <Package size={15} />, title: 'Order Tracking', desc: 'Real-time updates at every step' },
-  { icon: <Star size={15} />, title: 'Curated Selection', desc: 'Handpicked artisan quality products' },
-  { icon: <Zap size={15} />, title: 'Fast Checkout', desc: 'One-click reorders for regulars' },
+  { icon: <Sparkles size={15} />, title: 'Buyer agent', desc: 'Aria searches, compares, and drafts the order' },
+  { icon: <Shield size={15} />, title: 'Governance checkpoint', desc: 'Policy, budget, and risk are checked first' },
+  { icon: <Zap size={15} />, title: 'Three outcomes', desc: 'Auto-execute, human approval, or block' },
+  { icon: <Package size={15} />, title: 'Explainable orders', desc: 'Every decision names the policy and the evidence' },
+  { icon: <Star size={15} />, title: 'Audit log', desc: 'Proposal, approval, and result stay on record' },
 ];
 
 export default function BuyerLoginPage({ onBack, onSignIn, onGuestContinue }) {
@@ -189,13 +189,13 @@ export default function BuyerLoginPage({ onBack, onSignIn, onGuestContinue }) {
             fontFamily: 'var(--font-serif)', fontSize: '32px', color: '#FFFFFF',
             fontWeight: 600, letterSpacing: '-0.03em', marginBottom: '12px', lineHeight: 1.2
           }}>
-            Shop Mindfully
+            Propose, then check
           </h2>
           <p style={{
             fontSize: '15px', color: 'rgba(255,255,255,0.82)',
-            lineHeight: 1.7, maxWidth: '280px', margin: '0 auto 36px'
+            lineHeight: 1.7, maxWidth: '300px', margin: '0 auto 36px'
           }}>
-            Discover curated artisan products with AI-powered guidance from Aria.
+            Aria can draft an order. The governance engine decides whether it may run.
           </p>
 
           {/* Feature pills */}
@@ -300,7 +300,7 @@ export default function BuyerLoginPage({ onBack, onSignIn, onGuestContinue }) {
               Welcome, Buyer
             </h1>
             <p style={{ fontSize: '14px', color: 'var(--ink-secondary)', lineHeight: 1.55 }}>
-              Sign in to access your personalized Cairn shopping experience.
+              Sign in to propose orders through the shared governance checkpoint.
             </p>
           </div>
 

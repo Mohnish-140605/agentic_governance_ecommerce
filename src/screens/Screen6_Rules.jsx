@@ -7,6 +7,7 @@ import {
   Hand, 
   X 
 } from 'lucide-react';
+import { updatePolicyRules } from '../services/api';
 
 export default function Screen6_Rules({
   rules,
@@ -56,6 +57,7 @@ export default function Screen6_Rules({
 
   const handleSave = () => {
     setSaveSuccess(true);
+    updatePolicyRules(rules).catch(() => {});
     if (onShowToast) {
       onShowToast("Personal safeguards cryptographically saved and deployed to Aria Enclave.");
     }

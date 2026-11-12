@@ -14,7 +14,7 @@ import {
   ArrowLeft,
   Briefcase
 } from 'lucide-react';
-import { CUSTOMER_NAV_SCREENS, SELLER_NAV_SCREENS } from '../data/navigation';
+import { CUSTOMER_NAV_SCREENS, SELLER_NAV_SCREENS, formatFirstName } from '../data/navigation';
 import { GoogleLogo } from './GoogleAuthModal';
 
 export default function Header({
@@ -51,16 +51,7 @@ export default function Header({
       transition: 'all 0.2s ease'
     }}>
       {/* Main Header Row */}
-      <div style={{
-        maxWidth: 'var(--max-width)',
-        margin: '0 auto',
-        padding: '16px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '16px',
-        flexWrap: 'wrap'
-      }}>
+      <div className="app-header-row">
         {/* Left: Logo & Role Isolation */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <CairnLogo onClick={() => setActiveScreen(dashboardMode === 'customer' ? 'explore' : 'seller_hub')} />
@@ -114,7 +105,7 @@ export default function Header({
               color: 'var(--ink-muted)',
               fontStyle: 'italic',
             }}>
-              mindful shopping with Aria
+              governed shopping with Aria
             </span>
           )}
         </div>
@@ -143,7 +134,7 @@ export default function Header({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)', fontSize: '13.5px' }}>
               <Search size={15} color="var(--ink-muted)" />
               <span style={{ color: 'var(--ink-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                Search organic essentials, quiet luxuries, laptops...
+                Search catalog
               </span>
             </div>
             <kbd style={{
@@ -321,8 +312,8 @@ export default function Header({
                   </div>
                 </div>
 
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
-                  {currentUser.name.split(' ')[0]}
+                <span className="header-user-name" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
+                  {formatFirstName(currentUser.name, 'Account')}
                 </span>
                 <ChevronDown size={12} color="var(--ink-muted)" />
               </button>
@@ -601,7 +592,8 @@ export default function Header({
                     borderRadius: '9999px',
                     border: '1px solid var(--butter-yellow-border)'
                   }}>
-                    {badgeCount}                  </span>
+                    {badgeCount}
+                  </span>
                 )}
               </button>
             );
@@ -628,12 +620,12 @@ export default function Header({
               }}
             >
               <Briefcase size={13} />
-              <span>Sell on Cairn · Studio →</span>
+              <span>Merchant studio</span>
             </button>
           )}
           {dashboardMode === 'seller' && (
             <div style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--forest-green)', fontWeight: 600, paddingRight: '6px' }}>
-              🌿 Verified Artisan Portal
+              Merchant checkpoint
             </div>
           )}
         </div>

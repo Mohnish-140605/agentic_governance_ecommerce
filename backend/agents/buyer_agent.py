@@ -158,3 +158,4 @@ class BuyerAgent:
                 "merchant_trust_score": 99.4
             }
         )
+

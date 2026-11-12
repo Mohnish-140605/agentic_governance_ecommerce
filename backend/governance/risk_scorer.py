@@ -68,3 +68,4 @@ class RiskScorer:
             breakdown=breakdown,
             reasons=reasons
         )
+

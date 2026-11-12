@@ -161,3 +161,4 @@ class Database:
             return [dict(row) for row in rows]
 
 db = Database()
+

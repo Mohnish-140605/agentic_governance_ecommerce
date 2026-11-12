@@ -143,3 +143,4 @@ def test_sla_latency_guarantee(gov_engine):
     latencies.sort()
     p95 = latencies[int(len(latencies) * 0.95)]
     assert p95 < 50.0  # Even stricter than 500ms! Typically under 5ms in Python.
+
