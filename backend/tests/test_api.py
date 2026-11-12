@@ -62,3 +62,42 @@ def test_audit_logs_endpoint():
     assert "sha256_hash" in first_log
     assert len(first_log["sha256_hash"]) == 64
 
+def test_governance_evaluation_summary_endpoint():
+    response = client.get("/api/governance/evaluation-summary")
+    assert response.status_code == 200
+    data = response.json()
+    assert "total_proposals_evaluated" in data
+    assert "auto_executed_actions" in data
+    assert "actions_requiring_approval" in data
+    assert "blocked_actions" in data
+    assert "human_approval_rate_pct" in data
+
+def test_merchant_listings_endpoints():
+    # 1. Create a listing
+    new_listing = {
+        "id": "SKU-TEST-999",
+        "name": "Handmade Hinoki Wood Coaster",
+        "merchant": "Kiso Artisans",
+        "price": 1250.0,
+        "stock": 15,
+        "category": "Living"
+    }
+    create_res = client.post("/api/listings", json=new_listing)
+    assert create_res.status_code == 200
+    assert create_res.json()["status"] == "SUCCESS"
+
+    # 2. Fetch listings and verify
+    get_res = client.get("/api/listings")
+    assert get_res.status_code == 200
+    listings = get_res.json()
+    assert any(l["id"] == "SKU-TEST-999" for l in listings)
+
+def test_order_dispatch_endpoint():
+    # Create or update an order dispatch
+    dispatch_res = client.post("/api/orders/dispatch", json={"order_id": "CRN-88421"})
+    assert dispatch_res.status_code == 200
+    data = dispatch_res.json()
+    assert data["status"] == "DISPATCHED"
+    assert data["order_id"] == "CRN-88421"
+
+

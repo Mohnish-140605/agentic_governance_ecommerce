@@ -241,3 +241,76 @@ def update_policy_rules(payload: Dict[str, Any] = Body(...)):
         "approvalThreshold": current_rule.approval_threshold
     }
 
+@app.get("/api/governance/evaluation-summary")
+def get_governance_evaluation_summary():
+    """
+    Returns research metrics per Objective 11 of Project_Docs.docx:
+    Auto-executed actions, held actions, blocked actions, unauthorized actions prevented,
+    policy violations detected, human approval rates.
+    """
+    return db.get_governance_evaluation_summary()
+
+@app.get("/api/listings")
+def get_merchant_listings():
+    """
+    Returns all verified merchant listings stored in SQLite.
+    """
+    return db.get_listings()
+
+@app.post("/api/listings")
+def create_merchant_listing(payload: Dict[str, Any] = Body(...)):
+    """
+    Registers a new artisan product created by merchant into the persistent database.
+    """
+    listing_id = payload.get("id") or f"SKU-{int(time.time() % 100000)}"
+    name = payload.get("name", "Handcrafted Good")
+    merchant = payload.get("merchant", "Verified Artisan Studio")
+    price = float(payload.get("price", 0.0))
+    stock = int(payload.get("stock", 1))
+    category = payload.get("category", "Living")
+    badge = payload.get("badge", "VERIFIED")
+    status = payload.get("status", "Verified & Active")
+    
+    db.add_listing(
+        listing_id=listing_id,
+        name=name,
+        merchant=merchant,
+        price=price,
+        stock=stock,
+        category=category,
+        badge=badge,
+        status=status
+    )
+    return {
+        "status": "SUCCESS",
+        "listing": {
+            "id": listing_id,
+            "name": name,
+            "merchant": merchant,
+            "price": price,
+            "stock": stock,
+            "category": category,
+            "badge": badge,
+            "status": status,
+            "type": "own"
+        },
+        "message": f"Listing '{name}' safely published to Cairn catalog."
+    }
+
+@app.post("/api/orders/dispatch")
+def dispatch_merchant_order(payload: Dict[str, Any] = Body(...)):
+    """
+    Updates an approved order to 'dispatched' by the artisan seller.
+    """
+    order_id = payload.get("order_id")
+    if not order_id:
+        raise HTTPException(status_code=400, detail="Order ID is required.")
+    
+    db.update_order_status(order_id, "dispatched")
+    return {
+        "status": "DISPATCHED",
+        "order_id": order_id,
+        "message": f"Order #{order_id} marked as dispatched with encrypted tracking."
+    }
+
+

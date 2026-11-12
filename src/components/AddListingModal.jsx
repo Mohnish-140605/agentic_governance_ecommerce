@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Building2, ShieldCheck, Loader2 } from 'lucide-react';
+import { createListing } from '../services/api';
 
 export default function AddListingModal({
   isOpen,
@@ -28,7 +29,7 @@ export default function AddListingModal({
       setAuditStep(2); // Price ceiling check
       setTimeout(() => {
         setAuditStep(3); // Conflict check
-        setTimeout(() => {
+        setTimeout(async () => {
           setIsAuditing(false);
           const newListing = {
             id: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -36,10 +37,17 @@ export default function AddListingModal({
             merchant: merchant.trim(),
             stock: parseInt(stock, 10) || 10,
             price: parseInt(price, 10) || 1200,
+            category: category,
             status: 'Verified & Active',
             badge: 'VERIFIED',
             type: 'own'
           };
+          // Persist to backend database if online
+          try {
+            await createListing(newListing);
+          } catch (err) {
+            console.debug('Persisting listing offline fallback:', err);
+          }
           onAddListing(newListing);
           if (onShowToast) {
             onShowToast(`✨ Listing "${name}" passed Cairn Origin & Price Audits and is published!`);

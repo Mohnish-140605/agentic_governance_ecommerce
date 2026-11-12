@@ -253,15 +253,25 @@ To eliminate buyer's remorse, orders enter a 15-minute tranquility pause with a 
 
 ---
 
-## 💻 Tech Stack
+## 💻 Tech Stack & System Architecture
 
-- **Frontend Core**: [React 19](https://react.dev/) + [React DOM 19](https://react.dev/)
+### Frontend Layer
+- **Framework**: [React 19](https://react.dev/) + [React DOM 19](https://react.dev/)
 - **Build & Dev Tooling**: [Vite 8](https://vitejs.dev/) with Hot Module Replacement (HMR)
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **Animations & Delight**: [canvas-confetti](https://www.npmjs.com/package/canvas-confetti)
 - **Linter & Code Quality**: [Oxlint](https://oxc.rs/) (Rust-based high speed linter)
-- **Styling Architecture**: Pure, highly maintainable CSS with modern CSS custom properties (`--font-serif: 'Fraunces'`, `--forest-green: #2D5A27`, `--bg-cream: #FBF7F0`).
+- **Styling Architecture**: Pure, highly maintainable CSS custom properties (`--font-serif: 'Fraunces'`, `--forest-green: #1F4D3A`, `--bg-cream: #FBF7F0`).
 - **Typography**: Google Fonts (*Fraunces* optical variable serif & *Inter* UI sans).
+
+### Backend & Governance Layer
+- **API Server**: [FastAPI](https://fastapi.tiangolo.com/) + Uvicorn ASGI server
+- **Multi-Agent Orchestration**: [LangGraph](https://github.com/langchain-ai/langgraph) Dual-Agent Workflow (Buyer Agent *Aria* + Merchant Agent)
+- **Local Inference Support**: Ollama / Open-Weights (Qwen 2.5 / Gemma 2) with deterministic algorithmic fallbacks
+- **Deterministic Governance Engine**: Zero-bypass rule interception, least-privilege matrix, risk scoring (0-100), price surge detection (>15%), and SHA-256 state hashing
+- **Persistence & Cryptographic Ledger**: SQLite with WAL mode (`orders`, `audit_ledger`, `user_policies`, `merchant_listings`)
+- **SLA Telemetry Monitor**: High-precision timers tracking Governance P95 latency (≤500ms), LLM response (≤5s), schema validity (≥95%), and 100% audit completeness
+- **Academic Evaluation**: Objective 11 evaluation summary computation directly from immutable audit records
 
 ---
 
@@ -269,45 +279,66 @@ To eliminate buyer's remorse, orders enter a 15-minute tranquility pause with a 
 
 ```
 agentic_governance_ecommerce/
-├── public/                 # Static assets & favicons
+├── backend/                        # Production FastAPI Governance Backend
+│   ├── agents/                     # LangGraph Multi-Agent Architecture
+│   │   ├── buyer_agent.py          # Aria Buyer Agent with intent parsing
+│   │   ├── merchant_agent.py       # Merchant Agent with stock & surge checks
+│   │   ├── llm_client.py           # Bounded Ollama client with fallbacks
+│   │   └── workflow.py             # LangGraph stateful multi-agent execution pipeline
+│   ├── governance/                 # Deterministic Pre-Execution Engine
+│   │   ├── authorization.py        # Least-privilege role-based access matrix
+│   │   ├── conflict_detector.py    # Budget divergence & price surge detector
+│   │   ├── engine.py               # Master Governance Engine (<10ms evaluation)
+│   │   ├── explainability.py       # Human-readable transparent explanations
+│   │   ├── policies.py             # PolicyRule engine (caps & thresholds)
+│   │   └── risk_scorer.py          # 0-100 composite risk calculation
+│   ├── models/
+│   │   ├── database.py             # SQLite manager & cryptographic ledger
+│   │   └── schemas.py              # Pydantic schemas (Proposals, SLA, Receipts)
+│   ├── sla/
+│   │   └── telemetry.py            # SLA monitor with P95 latency calculators
+│   ├── tests/                      # Automated test suite (13 passing tests)
+│   │   ├── test_api.py             # FastAPI endpoint integration tests
+│   │   └── test_governance.py      # Deterministic rule & scenario unit tests
+│   └── main.py                     # FastAPI server entry point
+├── public/                         # Static assets & favicons
 ├── src/
-│   ├── assets/             # Curated product images & photography
-│   ├── components/         # Reusable UI components & modals
-│   │   ├── AddListingModal.jsx   # Seller catalog addition modal
-│   │   ├── AskAriaFab.jsx        # Floating action trigger for Aria
-│   │   ├── CairnLogo.jsx         # Custom SVG emblem & wordmark
-│   │   ├── CartDrawer.jsx        # Slide-out zero-markup cart
-│   │   ├── CommandPalette.jsx    # Universal ⌘K spotlight navigation
-│   │   ├── Footer.jsx            # Mindful footer & navigation
-│   │   ├── GoogleAuthModal.jsx   # Google Identity Services modal
-│   │   ├── Header.jsx            # Top navigation bar & role switcher
-│   │   ├── LocationModal.jsx     # Neighborhood & PIN code selector
-│   │   ├── SellerOrderView.jsx   # Merchant order inspection view
-│   │   ├── Toast.jsx             # Non-intrusive status notification
-│   │   └── TrustReceipt.jsx      # Tangible 3-stamp verification receipt
+│   ├── assets/                     # Curated product images & photography
+│   ├── components/                 # Reusable UI components & modals
+│   │   ├── AddListingModal.jsx     # Seller catalog addition modal (with API persistence)
+│   │   ├── AskAriaFab.jsx          # Floating action trigger for Aria
+│   │   ├── CairnLogo.jsx           # Custom SVG emblem & wordmark
+│   │   ├── CartDrawer.jsx          # Slide-out zero-markup cart
+│   │   ├── CommandPalette.jsx      # Universal ⌘K spotlight navigation
+│   │   ├── Footer.jsx              # Mindful footer & navigation
+│   │   ├── GoogleAuthModal.jsx     # Google Identity Services modal
+│   │   ├── Header.jsx              # Top navigation bar & role switcher
+│   │   ├── LocationModal.jsx       # Neighborhood & PIN code selector
+│   │   ├── SellerOrderView.jsx     # Merchant order inspection & dispatch view
+│   │   ├── Toast.jsx               # Non-intrusive status notification
+│   │   └── TrustReceipt.jsx        # Tangible 3-stamp verification receipt
 │   ├── data/
-│   │   ├── mockData.js           # Products, rules, orders, & audit scenarios
-│   │   └── navigation.js         # Navigation links & popular locations
-│   ├── portals/
-│   │   └── CustomerPortal.jsx    # Consumer portal wrapper
-│   ├── screens/                  # Application screens
-│   │   ├── Screen1_Home.jsx          # Explore & Editorial Showcase
-│   │   ├── Screen2_Chat.jsx          # Conversational Aria Shopping
-│   │   ├── Screen3_NeedsOK.jsx       # High-Value Approval Buffer
-│   │   ├── Screen4_NotPlaced.jsx     # Rule Breach & Alternatives
-│   │   ├── Screen5_Orders.jsx        # Order History & Trust Receipts
-│   │   ├── Screen6_Rules.jsx         # Deterministic Rules Engine & Sandbox
-│   │   ├── Screen7_SellerHub.jsx     # Merchant Dashboard & Anti-Arbitrage
-│   │   ├── Screen8_StoreHealth.jsx   # Ecosystem Health & Telemetry
-│   │   └── Screen9_HowAriaWorks.jsx  # Governance Architecture Explainer
-│   ├── App.css                   # Layout & animation classes
-│   ├── App.jsx                   # Main application state & screen router
-│   ├── index.css                 # Global design system & CSS variables
-│   └── main.jsx                  # React 19 root mounting
-├── index.html              # HTML entrypoint & Google Fonts
-├── package.json            # Project manifest & dependencies
-├── vite.config.js          # Vite configuration
-└── .oxlintrc.json          # Oxlint configuration
+│   │   ├── mockData.js             # Products, rules, orders, & audit scenarios
+│   │   └── navigation.js           # Navigation links & popular locations
+│   ├── screens/                    # Application screens
+│   │   ├── Screen1_Home.jsx        # Explore & Dual-Agent Conflict Demonstration
+│   │   ├── Screen2_Chat.jsx        # Conversational Aria Shopping
+│   │   ├── Screen3_NeedsOK.jsx     # High-Value Approval Buffer with API gate
+│   │   ├── Screen4_NotPlaced.jsx   # Rule Breach & Cap adjustment
+│   │   ├── Screen5_Orders.jsx      # Order History & Trust Receipts (SQLite synced)
+│   │   ├── Screen6_Rules.jsx       # Deterministic Rules Engine & Sandbox
+│   │   ├── Screen7_SellerHub.jsx   # Merchant Dashboard & Anti-Arbitrage Hub
+│   │   ├── Screen8_StoreHealth.jsx # SLA Dashboard & Objective 11 Evaluation Summary
+│   │   └── Screen9_HowAriaWorks.jsx# Governance Architecture Explainer
+│   ├── services/
+│   │   └── api.js                  # Frontend-to-Backend HTTP client with offline fallbacks
+│   ├── App.css                     # Layout & animation classes
+│   ├── App.jsx                     # Top-level state & screen router
+│   ├── index.css                   # Global design system & CSS variables
+│   └── main.jsx                    # React 19 root mounting
+├── package.json                    # Project manifest & unified run scripts
+├── vite.config.js                  # Vite configuration
+└── .oxlintrc.json                  # Oxlint configuration
 ```
 
 ---
@@ -316,8 +347,8 @@ agentic_governance_ecommerce/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (version `v18.0.0` or higher recommended)
-- [npm](https://www.npmjs.com/) or [pnpm](https://pnpm.io/) or [yarn](https://yarnpkg.com/)
+- [Node.js](https://nodejs.org/) (`v18.0.0` or higher)
+- [Python](https://python.org/) (`v3.10` or higher)
 
 ### Installation
 
@@ -327,36 +358,43 @@ agentic_governance_ecommerce/
    cd agentic_governance_ecommerce
    ```
 
-2. **Install dependencies**:
+2. **Install frontend dependencies**:
    ```bash
    npm install
    ```
 
-3. **Start the local development server**:
+3. **Install backend Python dependencies**:
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+
+### Running the Full System
+
+1. **Start the FastAPI Governance Backend** (Port 8000):
+   ```bash
+   npm run backend
+   ```
+   *Interactive API Docs available at `http://localhost:8000/docs`.*
+
+2. **Start the React Frontend** (Port 5173):
    ```bash
    npm run dev
    ```
-   Open your browser and navigate to `http://localhost:5173`.
+   *Open your browser and navigate to `http://localhost:5173`.*
 
-### Build for Production
+### Testing & Verification
 
-To create an optimized production build:
-```bash
-npm run build
-```
-The output will be placed in the `dist/` directory.
+- **Run Backend & Governance Tests**:
+  ```bash
+  npm run test:backend
+  ```
+  *(Executes 13 comprehensive pytest test cases validating auto-execution, approval holds, spending cap blocks, least-privilege matrix, SLA latency thresholds, and API endpoints).*
 
-To preview the production build locally:
-```bash
-npm run preview
-```
+- **Build Frontend for Production**:
+  ```bash
+  npm run build
+  ```
 
-### Linting
-
-Run Oxlint to check code quality:
-```bash
-npm run lint
-```
 
 ---
 

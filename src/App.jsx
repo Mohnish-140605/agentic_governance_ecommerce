@@ -26,6 +26,12 @@ import Screen9_HowAriaWorks from './screens/Screen9_HowAriaWorks';
 
 import { INITIAL_RULES, INITIAL_ORDERS, SELLER_LISTINGS } from './data/mockData';
 import { DEFAULT_USER, POPULAR_LOCATIONS } from './data/navigation';
+import {
+  fetchOrders,
+  fetchListings,
+  updatePolicyRules,
+  sendHumanApproval
+} from './services/api';
 
 // ─── Session persistence helpers ────────────────────────────────────────────
 const SESSION_KEYS = {
@@ -111,6 +117,69 @@ export default function App() {
   useEffect(() => {
     saveAppState(appState);
   }, [appState]);
+
+  // ── Synchronize Orders and Verified Listings with Backend SQLite ─────────
+  useEffect(() => {
+    async function syncDataWithBackend() {
+      try {
+        const [backendOrders, backendListings] = await Promise.all([
+          fetchOrders(),
+          fetchListings()
+        ]);
+
+        if (Array.isArray(backendOrders) && backendOrders.length > 0) {
+          setOrders((prev) => {
+            const existingIds = new Set(prev.map(o => o.id));
+            const newFromBackend = backendOrders
+              .filter(bo => !existingIds.has(bo.id))
+              .map(bo => ({
+                id: bo.id,
+                item: bo.product_name,
+                subtitle: bo.specs || 'Artisan Direct Procurement',
+                price: bo.price,
+                status: bo.status || 'placed',
+                timestamp: 'Synced from Cairn Ledger',
+                image: '/assets/dell_xps.jpg',
+                merchant: bo.merchant || 'Verified Partner',
+                paymentChannel: 'HDFC Priority ••4902',
+                destination: bo.destination || 'Jor Bagh, New Delhi',
+                flagReason: bo.flag_reason,
+                stamps: {
+                  budget: { title: 'Budget Approved', desc: 'Checked against monthly cap', status: 'placed' },
+                  approval: { title: 'Governance Verified', desc: 'Validated by deterministic rules', status: 'placed' },
+                  merchant: { title: 'Verified Seller', desc: 'Direct artisan partner', status: 'placed' }
+                },
+                sha256: bo.sha256 || '9e88...77e1'
+              }));
+            return [...newFromBackend, ...prev];
+          });
+        }
+
+        if (Array.isArray(backendListings) && backendListings.length > 0) {
+          setSellerListings((prev) => {
+            const existingIds = new Set(prev.map(l => l.id));
+            const newFromBackend = backendListings
+              .filter(bl => !existingIds.has(bl.id))
+              .map(bl => ({
+                id: bl.id,
+                name: bl.name,
+                merchant: bl.merchant,
+                stock: bl.stock,
+                price: bl.price,
+                status: bl.status || 'Verified & Active',
+                badge: bl.badge || 'VERIFIED',
+                type: 'own'
+              }));
+            return [...prev, ...newFromBackend];
+          });
+        }
+      } catch (err) {
+        console.debug('Backend sync offline fallback:', err);
+      }
+    }
+
+    syncDataWithBackend();
+  }, []);
 
   // ── Global keyboard shortcut for ⌘K ───────────────────────────────────
   useEffect(() => {
@@ -238,7 +307,8 @@ export default function App() {
   };
 
   // ── Approve an order ──────────────────────────────────────────────────
-  const handleApproveOrder = (orderId) => {
+  const handleApproveOrder = async (orderId) => {
+    // Optimistic UI update
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id === orderId) {
@@ -258,10 +328,17 @@ export default function App() {
         return o;
       })
     );
+
+    // Persist to backend
+    try {
+      await sendHumanApproval(orderId, 'TOKEN-EXPLICIT-AUTH', 'APPROVE');
+    } catch (err) {
+      console.debug('Human approval backend sync:', err);
+    }
   };
 
   // ── Reject / release hold on order ────────────────────────────────────
-  const handleRejectOrder = (orderId) => {
+  const handleRejectOrder = async (orderId) => {
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id === orderId) {
@@ -274,15 +351,31 @@ export default function App() {
         return o;
       })
     );
+
+    // Persist to backend
+    try {
+      await sendHumanApproval(orderId, 'TOKEN-EXPLICIT-RELEASE', 'REJECT');
+    } catch (err) {
+      console.debug('Human reject backend sync:', err);
+    }
+
     showToast(`Order #${orderId} hold released safely. Zero funds debited.`);
   };
 
   // ── Raise limit from Screen 4 ──────────────────────────────────────────
-  const handleRaiseLimit = (newLimit) => {
+  const handleRaiseLimit = async (newLimit) => {
     setRules((prev) => ({
       ...prev,
       monthlyCap: newLimit
     }));
+
+    // Persist to backend
+    try {
+      await updatePolicyRules({ monthlyCap: newLimit });
+    } catch (err) {
+      console.debug('Policy cap backend sync:', err);
+    }
+
     showToast(`Monthly spending cap updated to ₹${newLimit.toLocaleString('en-IN')}.`);
   };
 
@@ -438,9 +531,11 @@ export default function App() {
             {activeScreen === 'seller_hub' && (
               <Screen7_SellerHub
                 sellerListings={sellerListings}
+                orders={orders}
                 onOpenAddListing={() => setAddListingModalOpen(true)}
                 currentLocation={currentLocation}
                 onShowToast={showToast}
+                currentUser={currentUser}
               />
             )}
             {activeScreen === 'store_health' && (
