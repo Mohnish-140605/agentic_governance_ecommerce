@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui';
 import TrustReceipt from '../components/TrustReceipt';
-import AmazonCategoryGrid from '../components/AmazonCategoryGrid';
+import AriaCopilotLogo from '../components/AriaCopilotLogo';
 import VoiceModal from '../components/VoiceModal';
 import { formatFirstName } from '../data/navigation';
 import { sendAgentChat, searchOnlineProducts } from '../services/api';
@@ -111,6 +111,22 @@ const MASTER_CATALOG = [
     image: '/assets/acer_swift.jpg',
     keywords: ['laptop', 'acer', 'swift', 'featherlight', 'study', 'portable'],
     rationale: 'Exceptional all-day battery life, lightweight chassis for commuting, and dual silent fans.'
+  },
+  {
+    id: 'prod-acer-aspire-lite',
+    name: 'Acer Aspire Lite 14 (Silent Study Edition)',
+    category: 'Hardware',
+    price: 19990,
+    specs: 'Intel Celeron N4500 · 8GB LPDDR4X · 256GB NVMe SSD · 14" FHD Anti-Glare',
+    acoustics: 'Fanless acoustic design (< 18 dB silent operation)',
+    partner: 'Acer Official Store',
+    verified: true,
+    rating: '4.7 ★',
+    batch: 'Batch #AC-199',
+    delivery: '⚡ Tomorrow, 11:00 AM',
+    image: '/assets/acer_swift.jpg',
+    keywords: ['laptop', '20000', '20k', 'budget', 'acer', 'aspire', 'study', 'quiet', 'under 20k'],
+    rationale: 'Comfortably within ₹20,000 budget cap with fanless quiet acoustics and all-day study battery.'
   },
   {
     id: 'prod-ideapad-slim3',
@@ -705,206 +721,180 @@ export default function Screen1_Home({
 
   return (
     <div className="home-screen-wrap animate-fade-in" style={{ paddingBottom: '80px' }}>
-      {/* ─── Hero Section (Source of truth: Fraunces serif, warm ivory, forest-green) ─── */}
-      <section style={{
-        maxWidth: 'var(--max-width)',
-        margin: '0 auto',
-        padding: 'clamp(28px, 4vw, 48px) clamp(16px, 3vw, 24px) 8px'
-      }}>
-        <div className="hero-intro">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                backgroundColor: 'var(--forest-green-light)',
-                color: 'var(--forest-green)',
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-pill)',
-                fontSize: '12px',
-                fontWeight: 650,
-                letterSpacing: '0.04em'
-              }}>
-                <Sparkles size={14} />
-                <span>BUYER AGENT · GOVERNANCE ENGINE</span>
-              </div>
+      {/* ─── Microsoft Copilot-Style Focused Start Screen (When no active conversation) ─── */}
+      {!chatOpen && (
+        <section style={{
+          maxWidth: '820px',
+          margin: '0 auto',
+          padding: 'clamp(48px, 9vw, 84px) clamp(16px, 4vw, 24px) 44px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center'
+        }}>
+          {/* Animated Copilot Ribbon Mark */}
+          <AriaCopilotLogo size={68} statusText="" />
 
-              {currentLocation && (
-                <div style={{
-                  display: 'inline-flex',
+          {/* Centered Heading matching Screenshot 1 */}
+          <h1 style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: 'clamp(2.3rem, 4.4vw, 3.4rem)',
+            fontWeight: 500,
+            color: 'var(--ink)',
+            margin: '18px 0 10px 0',
+            letterSpacing: '-0.025em',
+            lineHeight: 1.15
+          }}>
+            Hi {userName}, what can I help you with?
+          </h1>
+
+          <p style={{
+            fontSize: '16px',
+            color: 'var(--ink-secondary)',
+            maxWidth: '560px',
+            margin: '0 auto 36px auto',
+            lineHeight: 1.6
+          }}>
+            Governed shopping with Aria. Propose products, enforce spending policies, and verify every rupee before money moves.
+          </p>
+
+          {/* Copilot-Style Central Message Input Pill */}
+          <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '660px', marginBottom: '22px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: '#FFFFFF',
+              borderRadius: '100px',
+              padding: '10px 18px',
+              border: '1.5px solid var(--border-cream)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.06)',
+              gap: '12px',
+              transition: 'all 0.2s ease'
+            }}>
+              <button
+                type="button"
+                onClick={() => setVoiceModalOpen(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--forest-green)',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  backgroundColor: '#FFFFFF',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+                title="Add visual query / attachment"
+              >
+                <Plus size={20} />
+              </button>
+
+              <input
+                type="text"
+                placeholder="Message Aria or describe what you need (e.g. laptop under 20k)..."
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '16px',
                   color: 'var(--ink)',
-                  padding: '6px 14px',
-                  borderRadius: 'var(--radius-pill)',
-                  fontSize: '12px',
+                  backgroundColor: 'transparent'
+                }}
+                autoFocus
+              />
+
+              <button
+                type="button"
+                onClick={() => setVoiceModalOpen(true)}
+                style={{
+                  background: voiceModalOpen ? 'var(--forest-green-light)' : 'none',
+                  border: 'none',
+                  color: voiceModalOpen ? 'var(--forest-green)' : 'var(--ink-muted)',
+                  borderRadius: '50%',
+                  padding: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Voice search with Whisper / Web Speech"
+              >
+                <Mic size={20} />
+              </button>
+
+              <button
+                type="submit"
+                style={{
+                  backgroundColor: 'var(--forest-green)',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  borderRadius: '50%',
+                  width: '38px',
+                  height: '38px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  boxShadow: '0 3px 8px rgba(31, 77, 58, 0.25)'
+                }}
+              >
+                <ArrowRight size={17} />
+              </button>
+            </div>
+          </form>
+
+          {/* Copilot Suggestion Pills */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px',
+            justifyContent: 'center',
+            maxWidth: '700px'
+          }}>
+            {[
+              { label: '💻 Laptop under 20k', prompt: 'i want laptop under 20k' },
+              { label: '🎧 Quiet laptop under ₹60k', prompt: 'Find me a quiet study laptop under ₹60,000' },
+              { label: '🛏️ Linen sheets for guest room', prompt: 'Linen sheets for guest room' },
+              { label: '☕ Restock coffee beans', prompt: 'Restock roasted coffee beans' },
+              { label: '⚡ Under ₹999 deals', prompt: 'curated items under 999 kitchen home' }
+            ].map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                onClick={() => {
+                  setPromptInput(chip.prompt);
+                  runAgentWorkflow(chip.prompt);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '100px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid var(--border-cream)',
+                  color: 'var(--ink)',
+                  fontSize: '13.5px',
                   fontWeight: 500,
-                  border: currentLocation.isLiveGPS ? '1.5px solid #86EFAC' : '1px solid var(--border-cream)',
-                  boxShadow: 'var(--shadow-warm-sm)'
-                }}>
-                  <MapPin size={12} color="var(--forest-green)" />
-                  <span style={{ color: 'var(--forest-green)', fontWeight: 700 }}>
-                    {currentLocation.deliveryTime || '15 mins'}
-                  </span>
-                  <span style={{ color: 'var(--ink-muted)' }}>·</span>
-                  <span>{currentLocation.city}</span>
-                </div>
-              )}
-            </div>
-
-            <h1 style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 'clamp(2.4rem, 4.4vw, 3.6rem)',
-              lineHeight: 1.08,
-              fontWeight: 500,
-              color: 'var(--ink)',
-              marginBottom: '16px',
-              letterSpacing: '-0.03em'
-            }}>
-              Hi {userName}, <span style={{ fontStyle: 'italic', fontWeight: 400 }}>what should Aria propose?</span>
-            </h1>
-
-            <p style={{
-              fontSize: '16.5px',
-              color: 'var(--ink-secondary)',
-              lineHeight: 1.6,
-              margin: 0,
-              maxWidth: '560px'
-            }}>
-              The buyer agent can search, compare, and draft an order. A deterministic governance engine checks identity, budget, and policy, then auto-executes, asks you, or blocks — before any money moves.
-            </p>
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-warm-sm)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--forest-green-light)';
+                  e.currentTarget.style.borderColor = 'var(--forest-green)';
+                  e.currentTarget.style.color = 'var(--forest-green)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#FFFFFF';
+                  e.currentTarget.style.borderColor = 'var(--border-cream)';
+                  e.currentTarget.style.color = 'var(--ink)';
+                }}
+              >
+                {chip.label}
+              </button>
+            ))}
           </div>
-
-          <aside className="governance-panel" aria-label="How a proposal is decided">
-            <div className="governance-panel-head">
-              <ShieldCheck size={16} />
-              <span>Checkpoint is on</span>
-            </div>
-            <ol className="governance-steps">
-              <li>
-                <span>1</span>
-                <div>
-                  <strong>Buyer agent proposes</strong>
-                  <p>Aria turns the request into a product, a price, and a budget.</p>
-                </div>
-              </li>
-              <li>
-                <span>2</span>
-                <div>
-                  <strong>Governance evaluates</strong>
-                  <p>Identity, authorization, policy, budget, risk, and conflict. The model cannot approve itself.</p>
-                </div>
-              </li>
-              <li>
-                <span>3</span>
-                <div>
-                  <strong>One outcome</strong>
-                  <div className="outcome-pills">
-                    <em className="go">Auto-execute</em>
-                    <em className="hold">Human approval</em>
-                    <em className="stop">Block</em>
-                  </div>
-                </div>
-              </li>
-            </ol>
-            <p className="governance-panel-foot">
-              The reason and the result are written to the audit log before any tool runs.
-            </p>
-          </aside>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="hero-composer">
-            <Plus size={18} color="var(--forest-green)" style={{ flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder="A quiet laptop under ₹60,000"
-              value={promptInput}
-              onChange={(e) => setPromptInput(e.target.value)}
-              aria-label="Tell Aria what you need"
-            />
-            <button
-              type="button"
-              onClick={() => setVoiceModalOpen(true)}
-              style={{
-                padding: '8px',
-                color: voiceModalOpen ? 'var(--forest-green)' : 'var(--ink-muted)',
-                background: voiceModalOpen ? 'var(--forest-green-light)' : 'none',
-                borderRadius: '50%',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                flexShrink: 0,
-                transition: 'all 0.15s ease'
-              }}
-              title="Voice search with Whisper / Web Speech"
-            >
-              <Mic size={18} />
-            </button>
-            <Button
-              type="submit"
-              size="md"
-              className="ask-aria-btn"
-              icon={<ArrowRight size={15} />}
-              iconPosition="right"
-              style={{
-                padding: '10px 20px',
-                borderRadius: 'var(--radius-pill)',
-                flexShrink: 0
-              }}
-            >
-              Ask Aria
-            </Button>
-          </div>
-        </form>
-
-        <div className="hero-try">
-          <span style={{ fontSize: '13px', color: 'var(--ink-muted)', fontWeight: 600 }}>Try a governed case</span>
-          {quickPrompts.map((p) => (
-            <button
-              key={p.label}
-              type="button"
-              className={`try-chip try-chip-${p.tone}`}
-              onClick={() => {
-                setPromptInput(p.prompt);
-                runAgentWorkflow(p.prompt);
-              }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-      </section>
-
-      {/* ─── Amazon-Style Department Browse Hub ─── */}
-      <section style={{
-        maxWidth: 'var(--max-width)',
-        margin: '0 auto',
-        padding: '0 clamp(16px, 3vw, 24px) 24px'
-      }}>
-        <AmazonCategoryGrid
-          selectedCategory={activeCategorySlug}
-          onSelectCategory={(cat) => {
-            setActiveCategorySlug(cat.slug);
-            setPromptInput(`Browse ${cat.name}`);
-            runAgentWorkflow(cat.query);
-          }}
-          onQuickAction={(actionId) => {
-            if (actionId === 'orders' || actionId === 'buy-again') {
-              if (onNavigateToScreen) onNavigateToScreen('orders');
-            } else if (actionId === 'account') {
-              if (onNavigateToScreen) onNavigateToScreen('settings');
-            } else if (actionId === 'lists') {
-              if (onNavigateToScreen) onNavigateToScreen('safeguards');
-            }
-          }}
-          isLoading={agentExecuting}
-        />
-      </section>
+        </section>
+      )}
 
       {/* ─── Integrated Aria Activity & Conversation Panel ─── */}
       {chatOpen && (
@@ -1266,8 +1256,8 @@ export default function Screen1_Home({
                   borderRadius: '20px',
                   border: '1.5px solid #86EFAC',
                   boxShadow: '0 8px 32px rgba(16, 185, 129, 0.14)',
-                  padding: '22px 24px',
-                  margin: '10px 0 16px 48px',
+                  padding: '24px',
+                  margin: '10px 0 16px 0',
                   position: 'relative',
                   overflow: 'hidden'
                 }}>
@@ -1279,6 +1269,11 @@ export default function Screen1_Home({
                     right: 0,
                     height: '4px'
                   }} />
+
+                  {/* Microsoft Copilot-Style Fluid Ribbon Animation (matching Screenshot 2) */}
+                  <div style={{ padding: '8px 0 16px 0', borderBottom: '1px solid #ECFDF5', marginBottom: '16px' }}>
+                    <AriaCopilotLogo size={52} statusText="Aria is checking online catalogs & running pre-execution governance..." />
+                  </div>
 
                   {/* Header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
@@ -1772,6 +1767,80 @@ export default function Screen1_Home({
                 </div>
               )}
             </div>
+
+            {/* Copilot Pinned Input Composer at bottom of chat */}
+            <form onSubmit={handleSubmit} style={{
+              padding: '12px 24px',
+              backgroundColor: '#FFFFFF',
+              borderTop: '1px solid var(--border-cream)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: '#F8F9FA',
+                borderRadius: '100px',
+                padding: '8px 16px',
+                border: '1px solid var(--border-cream)',
+                gap: '10px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setVoiceModalOpen(true)}
+                  style={{ background: 'none', border: 'none', color: 'var(--forest-green)', cursor: 'pointer', display: 'flex' }}
+                  title="Add visual attachment"
+                >
+                  <Plus size={18} />
+                </button>
+                <input
+                  type="text"
+                  placeholder="Message Aria or refine query (e.g. compare with Lenovo or show specs)..."
+                  value={promptInput}
+                  onChange={(e) => setPromptInput(e.target.value)}
+                  style={{
+                    flex: 1,
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: '14.5px',
+                    backgroundColor: 'transparent',
+                    color: 'var(--ink)'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setVoiceModalOpen(true)}
+                  style={{
+                    background: voiceModalOpen ? 'var(--forest-green-light)' : 'none',
+                    border: 'none',
+                    color: voiceModalOpen ? 'var(--forest-green)' : 'var(--ink-muted)',
+                    borderRadius: '50%',
+                    padding: '6px',
+                    cursor: 'pointer',
+                    display: 'flex'
+                  }}
+                  title="Voice search with Whisper / Web Speech"
+                >
+                  <Mic size={18} />
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    backgroundColor: 'var(--forest-green)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                >
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </form>
 
             {/* Conversation Panel Footer Controls */}
             <div style={{
