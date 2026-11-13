@@ -4,31 +4,11 @@ Records and aggregates performance against research targets in LLM_SLA.docx.
 """
 
 from typing import List, Dict, Any
-import time
 from ..models.schemas import SLATelemetryRecord
 
 class SLAMonitor:
     def __init__(self):
         self.records: List[SLATelemetryRecord] = []
-        self._init_benchmark_samples()
-
-    def _init_benchmark_samples(self):
-        """Seed representative baseline records to establish 95th percentile metrics."""
-        sample_latencies = [112.0, 134.0, 148.0, 95.0, 160.0, 120.0, 105.0, 142.0, 150.0, 180.0]
-        sample_llm_times = [2100.0, 2450.0, 2640.0, 1980.0, 2800.0, 2300.0, 2550.0, 2700.0, 3100.0, 2200.0]
-        
-        for gov_lat, llm_lat in zip(sample_latencies, sample_llm_times):
-            self.records.append(SLATelemetryRecord(
-                endpoint="/api/agents/propose",
-                llm_latency_ms=llm_lat,
-                gov_latency_ms=gov_lat,
-                structured_output_valid=True,
-                governance_enforced=True,
-                audit_logged=True,
-                llm_target_met=(llm_lat <= 5000.0),
-                gov_target_met=(gov_lat <= 500.0),
-                timestamp=time.time() - 3600
-            ))
 
     def record_transaction(
         self,
@@ -56,13 +36,14 @@ class SLAMonitor:
         if not self.records:
             return {
                 "total_evaluations": 0,
-                "gov_p95_ms": 0.0,
-                "llm_p95_s": 0.0,
-                "gov_compliance_pct": 100.0,
-                "llm_compliance_pct": 100.0,
-                "validity_pct": 100.0,
-                "enforcement_pct": 100.0,
-                "audit_completeness_pct": 100.0
+                "gov_p95_ms": None,
+                "llm_p95_s": None,
+                "gov_compliance_pct": None,
+                "llm_compliance_pct": None,
+                "validity_pct": None,
+                "enforcement_pct": None,
+                "audit_completeness_pct": None,
+                "status": "NO_DATA"
             }
 
         total = len(self.records)
@@ -78,19 +59,31 @@ class SLAMonitor:
         valid = sum(1 for r in self.records if r.structured_output_valid)
         enforced = sum(1 for r in self.records if r.governance_enforced)
         logged = sum(1 for r in self.records if r.audit_logged)
+        gov_compliance_pct = round((gov_met / total) * 100.0, 1)
+        llm_compliance_pct = round((llm_met / total) * 100.0, 1)
+        validity_pct = round((valid / total) * 100.0, 1)
+        enforcement_pct = round((enforced / total) * 100.0, 1)
+        audit_completeness_pct = round((logged / total) * 100.0, 1)
+        all_targets_met = (
+            gov_compliance_pct == 100.0
+            and llm_compliance_pct == 100.0
+            and validity_pct >= 95.0
+            and enforcement_pct == 100.0
+            and audit_completeness_pct == 100.0
+        )
 
         return {
             "total_evaluations": total,
             "gov_p95_ms": round(gov_p95, 2),
             "gov_target_ms": 500.0,
-            "gov_compliance_pct": round((gov_met / total) * 100.0, 1),
+            "gov_compliance_pct": gov_compliance_pct,
             "llm_p95_s": round(llm_p95, 2),
             "llm_target_s": 5.0,
-            "llm_compliance_pct": round((llm_met / total) * 100.0, 1),
-            "validity_pct": round((valid / total) * 100.0, 1),
-            "enforcement_pct": round((enforced / total) * 100.0, 1),
-            "audit_completeness_pct": round((logged / total) * 100.0, 1),
-            "status": "ALL_TARGETS_HEALTHY"
+            "llm_compliance_pct": llm_compliance_pct,
+            "validity_pct": validity_pct,
+            "enforcement_pct": enforcement_pct,
+            "audit_completeness_pct": audit_completeness_pct,
+            "status": "ALL_TARGETS_HEALTHY" if all_targets_met else "TARGETS_AT_RISK"
         }
 
 # Global singleton monitor

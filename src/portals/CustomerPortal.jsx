@@ -25,6 +25,7 @@ export default function CustomerPortal({
   onApproveOrder,
   onRejectOrder,
   onRaiseLimit,
+  guardrailItem,
   onOpenSearch,
   onOpenCart,
   onOpenGoogleAuth,
@@ -132,6 +133,8 @@ export default function CustomerPortal({
             onRaiseLimit={onRaiseLimit}
             onAskAriaAboutProduct={onAskAria}
             onShowToast={showToast}
+            guardrailItem={guardrailItem}
+            rules={rules}
           />
         )}
 

@@ -486,7 +486,7 @@ export default function LandingPage({ onSelectBuyer, onSelectMerchant }) {
       }}>
         <p style={{ fontSize: '13px', color: 'var(--ink-muted)', fontWeight: 400 }}>
           <Shield size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '5px', color: 'var(--forest-green)' }} />
-          OAuth 2.0 secured · No passwords stored · Your data stays yours
+          Demo application · Google OAuth setup required · Payments and delivery are not connected
         </p>
       </div>
     </div>

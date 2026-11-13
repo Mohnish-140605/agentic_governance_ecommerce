@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Search,
-  Filter,
   ChevronLeft,
   ChevronRight,
   Eye
@@ -9,7 +8,9 @@ import {
 import { Badge } from '../ui';
 
 const STATUS_CONFIG = {
-  placed: { label: 'Completed', variant: 'placed' },
+  unknown: { label: 'Unknown', variant: 'review' },
+  placed: { label: 'Placed', variant: 'placed' },
+  dispatched: { label: 'Dispatched', variant: 'placed' },
   needs_ok: { label: 'Pending', variant: 'review' },
   failed: { label: 'Cancelled', variant: 'failed' },
   review: { label: 'In Review', variant: 'review' }
@@ -21,7 +22,7 @@ const GOVERNANCE_CONFIG = {
   blocked: { label: 'Blocked', variant: 'failed' }
 };
 
-export default function TransactionsTable({ orders = [], onViewOrder }) {
+export default function TransactionsTable({ orders = [], isAvailable = true, onViewOrder }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [governanceFilter, setGovernanceFilter] = useState('all');
@@ -32,7 +33,7 @@ export default function TransactionsTable({ orders = [], onViewOrder }) {
   const filteredOrders = orders.filter(order => {
     const matchesSearch = searchQuery === '' || 
       order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.item.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.item?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.merchant?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
@@ -50,12 +51,12 @@ export default function TransactionsTable({ orders = [], onViewOrder }) {
   const paginatedOrders = filteredOrders.slice(startIndex, startIndex + itemsPerPage);
 
   const formatDate = (timestamp) => {
-    // Simple date formatting - in real app would parse actual dates
-    return timestamp || 'Today';
+    return timestamp || 'Time unavailable';
   };
 
   return (
     <div style={{
+      minWidth: 0,
       backgroundColor: '#FFFFFF',
       border: '1px solid var(--border-cream)',
       borderRadius: '16px',
@@ -82,7 +83,7 @@ export default function TransactionsTable({ orders = [], onViewOrder }) {
             Recent Transactions
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--ink-muted)' }}>
-            {filteredOrders.length} orders found
+            {isAvailable ? `${filteredOrders.length} orders found` : 'Order data unavailable'}
           </p>
         </div>
 
@@ -125,7 +126,8 @@ export default function TransactionsTable({ orders = [], onViewOrder }) {
             }}
           >
             <option value="all">All Status</option>
-            <option value="placed">Completed</option>
+            <option value="placed">Placed</option>
+            <option value="dispatched">Dispatched</option>
             <option value="needs_ok">Pending</option>
             <option value="failed">Cancelled</option>
           </select>
@@ -189,8 +191,8 @@ export default function TransactionsTable({ orders = [], onViewOrder }) {
           <tbody>
             {paginatedOrders.length > 0 ? (
               paginatedOrders.map((order) => {
-                const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.placed;
-                const governanceStatus = order.status === 'placed' ? 'approved' : 
+                const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.unknown;
+                const governanceStatus = ['placed', 'dispatched'].includes(order.status) ? 'approved' :
                   order.status === 'needs_ok' ? 'pending' : 'blocked';
                 const governanceConfig = GOVERNANCE_CONFIG[governanceStatus];
 
@@ -212,14 +214,14 @@ export default function TransactionsTable({ orders = [], onViewOrder }) {
                         {order.item}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>
-                        {order.merchant || 'Direct Partner'}
+                        {order.merchant || 'Merchant unavailable'}
                       </div>
                     </td>
                     <td style={{ padding: '14px 16px', color: 'var(--ink-secondary)', fontSize: '12px' }}>
                       {formatDate(order.timestamp)}
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--ink)' }}>
-                      ₹{order.price?.toLocaleString('en-IN') || '0'}
+                      {order.price == null ? '—' : `₹${Number(order.price).toLocaleString('en-IN')}`}
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       <Badge variant={statusConfig.variant} size="sm">
@@ -264,7 +266,9 @@ export default function TransactionsTable({ orders = [], onViewOrder }) {
                   color: 'var(--ink-muted)',
                   fontSize: '14px'
                 }}>
-                  No orders found matching your filters
+                  {isAvailable
+                    ? 'No orders found matching your filters.'
+                    : 'Order data is unavailable from the backend.'}
                 </td>
               </tr>
             )}
@@ -279,7 +283,9 @@ export default function TransactionsTable({ orders = [], onViewOrder }) {
           borderTop: '1px solid var(--border-cream-subtle)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px'
         }}>
           <div style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>
             Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredOrders.length)} of {filteredOrders.length} orders

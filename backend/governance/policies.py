@@ -4,7 +4,7 @@ Aligned with Section 4.C and Section 12 of Project_Docs.docx.
 """
 
 from typing import Dict, Any, Tuple
-from ..models.schemas import ActionProposal
+from ..models.schemas import ActionProposal, MERCHANT_ACTIONS
 
 class PolicyRule:
     def __init__(
@@ -27,6 +27,18 @@ class PolicyEngine:
         price = proposal.requested_price
         monthly_cap = rule.monthly_cap
         approval_threshold = rule.approval_threshold
+        if proposal.action_type in MERCHANT_ACTIONS:
+            evidence = {
+                "action_type": proposal.action_type.value,
+                "requested_price": price,
+                "buyer_spending_policy_applied": False
+            }
+            return (
+                "AUTO_EXECUTE",
+                f"POL-MERCHANT-ACTION-CLEARED: {proposal.action_type.value} does not spend buyer funds; merchant authorization is evaluated separately.",
+                evidence
+            )
+
         user_budget = proposal.user_budget or price
 
         evidence = {

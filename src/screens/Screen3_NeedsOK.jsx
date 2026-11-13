@@ -1,19 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Clock, 
   Hand, 
   Check, 
   ArrowRight, 
-  Leaf, 
+  Package,
   Cpu, 
   HardDrive, 
   Monitor, 
   Award,
-  Lock,
-  RotateCcw
+  Lock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { sendHumanApproval } from '../services/api';
 
 export default function Screen3_NeedsOK({
   orders,
@@ -25,61 +23,93 @@ export default function Screen3_NeedsOK({
   rules
 }) {
   const userName = currentUser ? currentUser.name.split(' ')[0] : 'Priya';
-  const pendingOrder = (orders && orders.find(o => o.status === 'needs_ok')) || (orders && orders.find(o => o.id === 'CRN-88421')) || (orders && orders[0]) || {
-    id: 'CRN-88421',
-    item: 'Dell XPS 13 Plus',
-    price: 120000,
-    merchant: 'Dell Direct Official Flagship',
-    image: '/assets/dell_xps.jpg'
-  };
-  const orderId = pendingOrder.id;
+  const pendingOrder = orders?.find((order) => order.status === 'needs_ok');
+  const orderId = pendingOrder?.id;
+  const [completedAction, setCompletedAction] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isApproved = completedAction?.orderId === orderId && completedAction.status === 'approved';
+  const isReleased = completedAction?.orderId === orderId && completedAction.status === 'released';
+  const amount = pendingOrder?.price == null ? NaN : Number(pendingOrder.price);
+  const formattedAmount = Number.isFinite(amount) ? amount.toLocaleString('en-IN') : null;
 
-  // 15-minute countdown timer (default 10:45 = 645 seconds)
-  const [secondsLeft, setSecondsLeft] = useState(645);
-  const [isApproved, setIsApproved] = useState(pendingOrder.status === 'placed');
-  const [isReleased, setIsReleased] = useState(pendingOrder.status === 'failed');
-
-  useEffect(() => {
-    if (secondsLeft <= 0 || isApproved || isReleased) return;
-    const interval = setInterval(() => {
-      setSecondsLeft((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [secondsLeft, isApproved, isReleased]);
-
-  const formatTimer = (totalSeconds) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-
-  const handleApprove = () => {
-    setIsApproved(true);
-    sendHumanApproval(orderId, 'AUTH-TOK-CONFIRM', 'APPROVE').catch(() => {});
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#1F4D3A', '#FFE9A8', '#34D399', '#FF6B5B']
-    });
-    if (onApproveOrder) {
-      onApproveOrder(orderId);
-    }
-    if (onShowToast) {
-      onShowToast(`Order #${orderId} approved! Trust Receipt stamped and verified.`);
+  const handleApprove = async () => {
+    if (!pendingOrder || isApproved || isReleased || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (!onApproveOrder) {
+        onShowToast?.('Approval is unavailable because no governance handler is connected.');
+        return;
+      }
+      const confirmed = await onApproveOrder?.(orderId);
+      if (confirmed !== true) return;
+      setCompletedAction({ orderId, status: 'approved' });
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#1F4D3A', '#FFE9A8', '#34D399', '#FF6B5B']
+      });
+      onShowToast?.(`Approval for order #${orderId} was recorded.`);
+    } catch (error) {
+      console.error(`Unable to approve order ${orderId}:`, error);
+      onShowToast?.('Approval could not be confirmed. The order remains pending.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleReject = () => {
-    setIsReleased(true);
-    sendHumanApproval(orderId, 'AUTH-TOK-CONFIRM', 'REJECT').catch(() => {});
-    if (onRejectOrder) {
-      onRejectOrder(orderId);
-    }
-    if (onShowToast) {
-      onShowToast("Hold released gently. No funds were debited.");
+  const handleReject = async () => {
+    if (!pendingOrder || isApproved || isReleased || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (!onRejectOrder) {
+        onShowToast?.('Release is unavailable because no governance handler is connected.');
+        return;
+      }
+      const confirmed = await onRejectOrder?.(orderId);
+      if (confirmed !== true) return;
+      setCompletedAction({ orderId, status: 'released' });
+      onShowToast?.(`Order #${orderId} was released.`);
+    } catch (error) {
+      console.error(`Unable to release order ${orderId}:`, error);
+      onShowToast?.('Release could not be confirmed. The order remains pending.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  if (!pendingOrder) {
+    return (
+      <div className="needs-ok-screen-wrap animate-fade-in" style={{ paddingBottom: '80px' }}>
+        <main style={{ maxWidth: 'var(--max-width)', margin: '0 auto', padding: '36px 24px' }}>
+          <section
+            role="status"
+            style={{
+              maxWidth: '680px',
+              margin: '48px auto',
+              padding: '40px 28px',
+              textAlign: 'center',
+              background: '#FFFFFF',
+              border: '1px solid var(--border-cream)',
+              borderRadius: '24px',
+              boxShadow: 'var(--shadow-warm-sm)'
+            }}
+          >
+            <Package size={36} color="var(--forest-green)" style={{ margin: '0 auto 14px' }} />
+            <h1 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.4rem)', marginBottom: '8px' }}>
+              No approvals pending
+            </h1>
+            <p style={{ fontSize: '15px', marginBottom: '22px' }}>
+              Orders that need your decision will appear here. There is no order awaiting approval right now.
+            </p>
+            <button className="pill-button-primary" onClick={() => onNavigateToScreen('explore')}>
+              Back to Explore <ArrowRight size={16} />
+            </button>
+          </section>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="needs-ok-screen-wrap animate-fade-in" style={{ paddingBottom: '80px' }}>
@@ -116,15 +146,18 @@ export default function Screen3_NeedsOK({
             color: 'var(--ink)',
             marginBottom: '10px'
           }}>
-            Pending Approval for High-Value Purchase
+            Review this order
           </h1>
 
           <p style={{ fontSize: '17px', color: 'var(--ink-secondary)', maxWidth: '680px', lineHeight: 1.5 }}>
-            To protect your funds, Aria cannot auto-debit items above your <strong style={{ color: 'var(--ink)' }}>₹{rules ? rules.approvalThreshold.toLocaleString('en-IN') : '1,00,000'}</strong> threshold without your explicit confirmation.
+            This order needs your explicit decision before it can proceed. Your automatic approval threshold is{' '}
+            <strong style={{ color: 'var(--ink)' }}>
+              ₹{Number(rules?.approvalThreshold || 0).toLocaleString('en-IN')}
+            </strong>.
           </p>
         </div>
 
-        {/* 15-Minute Tranquility Hold Timer Banner */}
+        {/* Do not display a countdown unless the backend supplies an expiry time. */}
         <div style={{
           backgroundColor: isApproved ? 'var(--forest-green-light)' : isReleased ? '#F4EFE6' : 'var(--butter-yellow-light)',
           borderRadius: 'var(--radius-pill)',
@@ -141,10 +174,10 @@ export default function Screen3_NeedsOK({
           <Clock size={18} color={isApproved ? 'var(--forest-green)' : isReleased ? 'var(--ink-muted)' : 'var(--butter-yellow-dark)'} />
           <span style={{ fontSize: '14.5px', fontWeight: 600, color: isApproved ? 'var(--forest-green)' : isReleased ? 'var(--ink-secondary)' : 'var(--butter-yellow-dark)' }}>
             {isApproved 
-              ? 'Authorized & Settled · Priority fulfillment locked'
+              ? 'Approval recorded · Seller fulfillment is still pending'
               : isReleased 
-                ? 'Reservation released · Your intent remains safe' 
-                : `Holding this reserved unit for ${formatTimer(secondsLeft)}`}
+                ? 'Order released after your decision'
+                : 'Awaiting your decision · No countdown is available'}
           </span>
         </div>
 
@@ -165,9 +198,9 @@ export default function Screen3_NeedsOK({
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: 'var(--forest-green)' }}>
-                ✦ EDITORIAL SELECTION #084
+                ORDER AWAITING REVIEW
               </span>
-              <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>{pendingOrder.merchant || 'Dell Flagship Store'}</span>
+              <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>{pendingOrder.merchant || 'Merchant not provided'}</span>
             </div>
 
             {/* Large Product Photo */}
@@ -179,25 +212,15 @@ export default function Screen3_NeedsOK({
               backgroundColor: '#FAF5ED',
               marginBottom: '20px'
             }}>
-              <img
-                src={pendingOrder.image || '/assets/dell_xps.jpg'}
-                alt={pendingOrder.item}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-              <span style={{
-                position: 'absolute',
-                bottom: '12px',
-                left: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.94)',
-                padding: '4px 12px',
-                borderRadius: '8px',
-                fontSize: '11px',
-                fontWeight: 600,
-                color: 'var(--ink)',
-                border: '1px solid var(--border-cream)'
-              }}>
-                Single Reserve Unit Allocated
-              </span>
+              {pendingOrder.image ? (
+                <img
+                  src={pendingOrder.image}
+                  alt={pendingOrder.item || 'Order product'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <Package size={48} color="var(--forest-green)" style={{ position: 'absolute', inset: 0, margin: 'auto' }} />
+              )}
             </div>
 
             {/* Product Title & Price */}
@@ -206,12 +229,12 @@ export default function Screen3_NeedsOK({
                 {pendingOrder.item}
               </h2>
               <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--forest-green)' }}>
-                ₹{pendingOrder.price.toLocaleString('en-IN')}
+                {formattedAmount ? `₹${formattedAmount}` : 'Price unavailable'}
               </div>
             </div>
 
             <p style={{ fontSize: '14px', color: 'var(--ink-secondary)', marginBottom: '18px' }}>
-              {pendingOrder.subtitle || 'Pure White Edition · CNC Machined Aluminum & Gorilla Glass'}
+              {pendingOrder.subtitle || 'No additional product details were provided.'}
             </p>
 
             {/* Verified Specifications Table */}
@@ -225,12 +248,10 @@ export default function Screen3_NeedsOK({
               gap: '10px'
             }}>
               <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--ink-muted)', letterSpacing: '0.04em', marginBottom: '2px' }}>
-                VERIFIED SPECIFICATIONS
+                PRODUCT DETAILS
               </div>
 
-              {/* Dynamically render spec rows from pendingOrder.subtitle, or fallback to Dell XPS specs */}
               {pendingOrder.subtitle ? (
-                // Split subtitle by · and render each spec as a row
                 pendingOrder.subtitle.split('·').map((spec, idx) => (
                   <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
@@ -244,46 +265,10 @@ export default function Screen3_NeedsOK({
                   </div>
                 ))
               ) : (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
-                      <Cpu size={14} color="var(--forest-green)" />
-                      <span>Processor</span>
-                    </div>
-                    <strong style={{ color: 'var(--ink)' }}>Intel Core i7-1360P (13th Gen)</strong>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
-                      <HardDrive size={14} color="var(--forest-green)" />
-                      <span>Memory &amp; Drive</span>
-                    </div>
-                    <strong style={{ color: 'var(--ink)' }}>32GB LPDDR5 · 1TB NVMe PCIe 4</strong>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
-                      <Monitor size={14} color="var(--forest-green)" />
-                      <span>Display</span>
-                    </div>
-                    <strong style={{ color: 'var(--ink)' }}>3.5K OLED InfinityEdge (Touch)</strong>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink-secondary)' }}>
-                      <Award size={14} color="var(--forest-green)" />
-                      <span>Warranty &amp; Origin</span>
-                    </div>
-                    <strong style={{ color: 'var(--ink)' }}>Dell Direct Official · 3-Yr Onsite</strong>
-                  </div>
-                </>
+                <p style={{ fontSize: '13px', color: 'var(--ink-secondary)' }}>
+                  Product specifications are not available for this order.
+                </p>
               )}
-            </div>
-
-            {/* Sustainability Note */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--forest-green)', marginBottom: '16px' }}>
-              <Leaf size={14} />
-              <span>Sustainably boxed in 100% ocean-bound and recycled molded pulp with zero plastic wrappers.</span>
             </div>
 
             {/* Flagged Reason Card */}
@@ -297,10 +282,10 @@ export default function Screen3_NeedsOK({
               border: '1px solid var(--butter-yellow-border)'
             }}>
               <div style={{ fontSize: '13px', color: 'var(--ink)' }}>
-                Why Aria flagged this purchase
+                Why this order needs your review
               </div>
               <span className="badge-review" style={{ fontSize: '11px' }}>
-                Rule #04 triggered
+                {pendingOrder.flagReason || 'Awaiting approval'}
               </span>
             </div>
           </div>
@@ -321,7 +306,7 @@ export default function Screen3_NeedsOK({
 
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>TIMESTAMP</div>
-                  <div style={{ fontSize: '12.5px', fontWeight: 600 }}>Today · 10:41 AM IST</div>
+                  <div style={{ fontSize: '12.5px', fontWeight: 600 }}>{pendingOrder.timestamp || 'Not recorded'}</div>
                 </div>
               </div>
 
@@ -329,20 +314,24 @@ export default function Screen3_NeedsOK({
               <div className="trust-receipt-details">
                 <div className="receipt-meta-box">
                   <div className="receipt-meta-label">Item Cost</div>
-                  <div className="receipt-meta-value" style={{ color: 'var(--ink)' }}>₹{pendingOrder.price.toLocaleString('en-IN')}</div>
-                  <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>GST Included (18%)</div>
+                  <div className="receipt-meta-value" style={{ color: 'var(--ink)' }}>
+                    {formattedAmount ? `₹${formattedAmount}` : 'Not provided'}
+                  </div>
+                  <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>As recorded by the order service</div>
                 </div>
 
                 <div className="receipt-meta-box">
-                  <div className="receipt-meta-label">Shipping & Care</div>
-                  <div className="receipt-meta-value" style={{ color: 'var(--forest-green)' }}>Complimentary</div>
-                  <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>White Glove Handled</div>
+                  <div className="receipt-meta-label">Merchant</div>
+                  <div className="receipt-meta-value" style={{ color: 'var(--ink)' }}>
+                    {pendingOrder.merchant || 'Not provided'}
+                  </div>
+                  <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Seller verification is not shown here</div>
                 </div>
 
                 <div className="receipt-meta-box">
                   <div className="receipt-meta-label">Destination</div>
-                  <div className="receipt-meta-value">{pendingOrder.destination || 'Jor Bagh'}</div>
-                  <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>{userName}'s Residence</div>
+                  <div className="receipt-meta-value">{pendingOrder.destination || 'Not provided'}</div>
+                  <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Delivery details as recorded</div>
                 </div>
               </div>
 
@@ -358,43 +347,38 @@ export default function Screen3_NeedsOK({
                     HUMAN-FIRST PRE-EXECUTION VERIFICATION
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--ink-muted)', fontWeight: 600 }}>
-                    Deterministic Check 3 of 3
+                    Decision pending
                   </div>
                 </div>
 
                 <div className="stamps-grid">
-                  {/* Stamp 1: Green */}
-                  <div className="trust-stamp-card stamp-card-green">
+                  <div className="trust-stamp-card stamp-card-yellow">
                     <div className="stamp-emblem">
-                      <Check size={22} strokeWidth={2.5} />
+                      <Hand size={22} strokeWidth={2.5} />
                     </div>
-                    <div className="stamp-name">BUDGET APPROVED</div>
+                    <div className="stamp-name">BUYER DECISION</div>
                     <div className="stamp-desc">
-                      Within overall wallet budget (₹1,50,000 balance available)
+                      {isApproved ? 'Approval recorded.' : isReleased ? 'Order released.' : 'Waiting for your explicit choice.'}
                     </div>
                   </div>
 
-                  {/* Stamp 2: Yellow (or green if approved) */}
-                  <div className={`trust-stamp-card ${isApproved ? 'stamp-card-green' : 'stamp-card-yellow'}`}>
+                  <div className="trust-stamp-card stamp-card-yellow">
                     <div className="stamp-emblem">
-                      {isApproved ? <Check size={22} strokeWidth={2.5} /> : <Hand size={22} strokeWidth={2.5} />}
+                      <Clock size={22} />
                     </div>
-                    <div className="stamp-name">
-                      {isApproved ? 'USER APPROVED' : 'NEEDS CONFIRMATION'}
-                    </div>
+                    <div className="stamp-name">AUTOMATIC THRESHOLD</div>
                     <div className="stamp-desc">
-                      {isApproved ? `Explicit authorization granted by ${userName}` : `Exceeds auto threshold: ₹1,20,000 > ₹${rules ? rules.approvalThreshold.toLocaleString('en-IN') : '1,00,000'} limit`}
+                      ₹{Number(rules?.approvalThreshold || 0).toLocaleString('en-IN')}
                     </div>
                   </div>
 
-                  {/* Stamp 3: Green */}
                   <div className="trust-stamp-card stamp-card-green">
                     <div className="stamp-emblem">
                       <Award size={22} strokeWidth={2.5} />
                     </div>
-                    <div className="stamp-name">AUTHENTIC SELLER</div>
+                    <div className="stamp-name">ORDER ID</div>
                     <div className="stamp-desc">
-                      Verified flagship merchant · Direct OEM Fulfilment
+                      {orderId}
                     </div>
                   </div>
                 </div>
@@ -411,8 +395,8 @@ export default function Screen3_NeedsOK({
                   fontFamily: 'ui-monospace, monospace',
                   color: 'var(--ink-muted)'
                 }}>
-                  <span>CRN-AUTH-HASH: 9e88fa12c309b4d</span>
-                  <span>Signed by Aria Engine v4.2 · Rule Set: Priya-Primary-2026</span>
+                  <span>Audit hash: {pendingOrder.sha256 || 'Not provided'}</span>
+                  <span>{userName} · Governance decision record</span>
                 </div>
               </div>
 
@@ -430,25 +414,27 @@ export default function Screen3_NeedsOK({
                     <button
                       className="pill-button-primary"
                       onClick={handleApprove}
+                      disabled={isSubmitting || !formattedAmount}
                       style={{ padding: '16px 24px', fontSize: '16px' }}
                     >
-                      <span>Yes, order it (₹{pendingOrder.price.toLocaleString('en-IN')})</span>
+                      <span>{isSubmitting ? 'Confirming…' : `Approve order${formattedAmount ? ` (₹${formattedAmount})` : ''}`}</span>
                       <ArrowRight size={18} />
                     </button>
 
                     <button
                       className="pill-button-secondary"
                       onClick={handleReject}
+                      disabled={isSubmitting}
                       style={{ padding: '16px 20px', fontSize: '15px' }}
                     >
-                      <span>Not now</span>
+                      <span>{isSubmitting ? 'Confirming…' : 'Reject & release'}</span>
                     </button>
                   </div>
                 ) : isApproved ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--forest-green)', fontWeight: 600 }}>
                       <Check size={18} />
-                      <span>Order #{orderId} placed successfully!</span>
+                      <span>Approval recorded for order #{orderId}.</span>
                     </div>
                     <button
                       className="pill-button-primary"
@@ -460,16 +446,8 @@ export default function Screen3_NeedsOK({
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                     <div style={{ color: 'var(--ink-secondary)', fontSize: '14px' }}>
-                      Hold gently released. Unit returned to Dell Flagship store.
+                      Order #{orderId} was released.
                     </div>
-                    <button
-                      className="pill-button-secondary"
-                      onClick={() => setIsReleased(false)}
-                      style={{ fontSize: '13px' }}
-                    >
-                      <RotateCcw size={14} />
-                      <span>Re-engage hold</span>
-                    </button>
                   </div>
                 )}
 
@@ -482,7 +460,7 @@ export default function Screen3_NeedsOK({
                   color: 'var(--ink-muted)'
                 }}>
                   <Lock size={13} />
-                  <span>No funds are moved until you tap approve. If the timer runs out, the hold is gently released.</span>
+                  <span>This demo records governance decisions only; payment and fulfillment are not connected.</span>
                 </div>
               </div>
             </div>

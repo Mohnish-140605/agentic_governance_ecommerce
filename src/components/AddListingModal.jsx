@@ -13,49 +13,39 @@ export default function AddListingModal({
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('15');
   const [category, setCategory] = useState('Living');
-  const [isAuditing, setIsAuditing] = useState(false);
-  const [auditStep, setAuditStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !price) return;
+    if (isSubmitting) return;
+    setSubmissionError(null);
+    setIsSubmitting(true);
 
-    setIsAuditing(true);
-    setAuditStep(1); // Origin check
+    try {
+      const newListing = {
+        name: name.trim(),
+        merchant: merchant.trim(),
+        stock: Number(stock),
+        price: Number(price),
+        category
+      };
+      const response = await createListing(newListing);
+      if (response?.status !== 'SUCCESS' || !response.listing) {
+        throw new Error('The backend did not confirm publication.');
+      }
 
-    setTimeout(() => {
-      setAuditStep(2); // Price ceiling check
-      setTimeout(() => {
-        setAuditStep(3); // Conflict check
-        setTimeout(async () => {
-          setIsAuditing(false);
-          const newListing = {
-            id: `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
-            name: name.trim(),
-            merchant: merchant.trim(),
-            stock: parseInt(stock, 10) || 10,
-            price: parseInt(price, 10) || 1200,
-            category: category,
-            status: 'Verified & Active',
-            badge: 'VERIFIED',
-            type: 'own'
-          };
-          // Persist to backend database if online
-          try {
-            await createListing(newListing);
-          } catch (err) {
-            console.debug('Persisting listing offline fallback:', err);
-          }
-          onAddListing(newListing);
-          if (onShowToast) {
-            onShowToast(`✨ Listing "${name}" passed Cairn Origin & Price Audits and is published!`);
-          }
-          onClose();
-        }, 600);
-      }, 600);
-    }, 600);
+      onAddListing(response.listing);
+      onShowToast?.(response.message || `Listing "${response.listing.name}" was published.`);
+      onClose();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected publishing error.';
+      setSubmissionError(`Not published: ${message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -108,13 +98,14 @@ export default function AddListingModal({
                 Publish Artisan Listing
               </h2>
               <div style={{ fontSize: '12px', color: 'var(--ink-secondary)' }}>
-                Direct Maker Origin & Escrow Verification
+                Backend governance review and audit
               </div>
             </div>
           </div>
 
           <button
             onClick={onClose}
+            disabled={isSubmitting}
             aria-label="Close"
             style={{
               background: 'none',
@@ -130,23 +121,28 @@ export default function AddListingModal({
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: 'clamp(16px, 4vw, 24px) clamp(16px, 4vw, 28px)', flex: 1, overflowY: 'auto' }}>
-          {isAuditing ? (
+          {submissionError && (
+            <div role="alert" style={{
+              marginBottom: '14px',
+              padding: '10px 12px',
+              borderRadius: '10px',
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              color: '#B91C1C',
+              fontSize: '13px'
+            }}>
+              {submissionError}
+            </div>
+          )}
+          {isSubmitting ? (
             <div style={{ padding: '20px 0', textAlign: 'center' }}>
               <Loader2 size={36} className="animate-spin" color="var(--forest-green)" style={{ margin: '0 auto 16px' }} />
               <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--ink)' }}>
-                Auditing Product Integrity...
+                Governance is evaluating your listing…
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '300px', margin: '20px auto 0', textAlign: 'left', fontSize: '13px' }}>
-                <div style={{ color: auditStep >= 1 ? '#166534' : 'var(--ink-muted)', fontWeight: auditStep >= 1 ? 600 : 400 }}>
-                  ✓ Direct Origin & Maker Audit
-                </div>
-                <div style={{ color: auditStep >= 2 ? '#166534' : 'var(--ink-muted)', fontWeight: auditStep >= 2 ? 600 : 400 }}>
-                  ✓ MSRP Ceiling & No Surge Pricing
-                </div>
-                <div style={{ color: auditStep >= 3 ? '#166534' : 'var(--ink-muted)', fontWeight: auditStep >= 3 ? 600 : 400 }}>
-                  ✓ Duplicate Catalog & Drop-shipping Check
-                </div>
-              </div>
+              <p style={{ marginTop: '8px', fontSize: '13px', color: 'var(--ink-muted)' }}>
+                Publishing is confirmed only after the backend records the governance decision and listing.
+              </p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -220,13 +216,15 @@ export default function AddListingModal({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)', marginBottom: '5px' }}>
-                    Fair MSRP Price (₹)
+                    Listing Price (₹)
                   </label>
                   <input
                     type="number"
                     placeholder="2800"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
+                    min="0.01"
+                    step="0.01"
                     style={{
                       width: '100%',
                       padding: '10px 14px',
@@ -248,6 +246,8 @@ export default function AddListingModal({
                     placeholder="15"
                     value={stock}
                     onChange={(e) => setStock(e.target.value)}
+                    min="0"
+                    step="1"
                     style={{
                       width: '100%',
                       padding: '10px 14px',
@@ -263,6 +263,7 @@ export default function AddListingModal({
 
               <button
                 type="submit"
+                disabled={isSubmitting}
                 style={{
                   marginTop: '10px',
                   backgroundColor: 'var(--forest-green)',
@@ -276,12 +277,12 @@ export default function AddListingModal({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  cursor: 'pointer',
+                  cursor: isSubmitting ? 'wait' : 'pointer',
                   boxShadow: 'var(--shadow-warm-sm)'
                 }}
               >
                 <ShieldCheck size={16} />
-                <span>Run Cairn Audit & Publish Listing</span>
+                <span>Run Governance Check & Publish</span>
               </button>
             </div>
           )}

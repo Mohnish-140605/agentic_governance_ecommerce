@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import CairnLogo from './CairnLogo';
 import {
   Search,
@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ArrowLeft,
   Briefcase,
+  Settings,
   Mic,
   Camera
 } from 'lucide-react';
@@ -38,8 +39,33 @@ export default function Header({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const userMenuRef = useRef(null);
+  const userMenuTriggerRef = useRef(null);
 
   const navItems = dashboardMode === 'customer' ? CUSTOMER_NAV_SCREENS : SELLER_NAV_SCREENS;
+
+  useEffect(() => {
+    if (!userDropdownOpen) return undefined;
+
+    const closeOnOutsideClick = (event) => {
+      if (!userMenuRef.current?.contains(event.target)) {
+        setUserDropdownOpen(false);
+      }
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') {
+        setUserDropdownOpen(false);
+        userMenuTriggerRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [userDropdownOpen]);
 
   return (
     <header style={{
@@ -114,12 +140,15 @@ export default function Header({
 
         {/* Center: Search pill with shortcut ⌘K (Customer) or Merchant Quick Actions (Seller) */}
         {dashboardMode === 'customer' ? (
-          <div
+          <button
+            type="button"
+            aria-label="Open search or ask Aria"
             onClick={onOpenSearch}
             style={{
               flex: '1 1 auto',
               minWidth: 0,
               maxWidth: '460px',
+              width: '100%',
               backgroundColor: '#FFFFFF',
               border: '1px solid var(--border-cream)',
               borderRadius: 'var(--radius-pill)',
@@ -127,6 +156,7 @@ export default function Header({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              textAlign: 'left',
               cursor: 'pointer',
               boxShadow: 'var(--shadow-warm-sm)',
               transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
@@ -157,7 +187,7 @@ export default function Header({
                 ⌘K
               </kbd>
             </div>
-          </div>
+          </button>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
@@ -197,7 +227,10 @@ export default function Header({
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* Interactive Live Location Pill */}
           <button
+            type="button"
+            className="header-location-button"
             onClick={onOpenLocationModal}
+            aria-label={`Change delivery location. Current city: ${currentLocation?.city || 'not selected'}`}
             title="Click to calibrate GPS or switch delivery city"
             style={{
               display: 'flex',
@@ -231,8 +264,10 @@ export default function Header({
           {/* Cart Icon (Customer View) */}
           {dashboardMode === 'customer' && (
             <button
+              type="button"
+              className="header-cart-button"
               onClick={onOpenCart}
-              aria-label="View Cart"
+              aria-label={`Shopping bag, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`}
               style={{
                 position: 'relative',
                 width: '38px',
@@ -248,9 +283,9 @@ export default function Header({
                 cursor: 'pointer'
               }}
             >
-              <ShoppingBag size={17} />
+              <ShoppingBag size={19} aria-hidden="true" />
               {cartCount > 0 && (
-                <span style={{
+                <span aria-hidden="true" style={{
                   position: 'absolute',
                   top: '-3px',
                   right: '-3px',
@@ -274,8 +309,15 @@ export default function Header({
 
           {/* Google Login / Authenticated User Pill */}
           {currentUser ? (
-            <div style={{ position: 'relative' }}>
+            <div ref={userMenuRef} style={{ position: 'relative' }}>
               <button
+                type="button"
+                id="account-menu-trigger"
+                ref={userMenuTriggerRef}
+                className="header-account-trigger"
+                aria-label={`Account menu for ${currentUser.name}`}
+                aria-expanded={userDropdownOpen}
+                aria-controls="account-menu-panel"
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 style={{
                   display: 'flex',
@@ -327,22 +369,24 @@ export default function Header({
               </button>
 
               {/* User Dropdown */}
-              {userDropdownOpen && (
-                <div
-                  className="animate-fade-in"
-                  style={{
-                    position: 'absolute',
-                    top: '48px',
-                    right: 0,
-                    width: 'min(260px, calc(100vw - 48px))',
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: '16px',
-                    border: '1.5px solid var(--border-cream)',
-                    boxShadow: 'var(--shadow-warm-md)',
-                    padding: '12px',
-                    zIndex: 50
-                  }}
-                >
+              <div
+                id="account-menu-panel"
+                aria-labelledby="account-menu-trigger"
+                className={userDropdownOpen ? 'animate-fade-in header-account-panel' : 'header-account-panel'}
+                hidden={!userDropdownOpen}
+                style={{
+                  position: 'absolute',
+                  top: '48px',
+                  right: 0,
+                  width: 'min(260px, calc(100vw - 48px))',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '16px',
+                  border: '1.5px solid var(--border-cream)',
+                  boxShadow: 'var(--shadow-warm-md)',
+                  padding: '12px',
+                  zIndex: 50
+                }}
+              >
                   <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-cream-subtle)', marginBottom: '10px' }}>
                     <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)', marginBottom: '4px' }}>
                       {currentUser.name}
@@ -358,6 +402,8 @@ export default function Header({
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <button
+                      type="button"
+                      className="header-menu-action"
                       onClick={() => {
                         setActiveScreen('rules');
                         setUserDropdownOpen(false);
@@ -384,8 +430,40 @@ export default function Header({
                       <span>Safeguards & Profile</span>
                     </button>
 
+                    {dashboardMode === 'customer' && (
+                      <button
+                        type="button"
+                        className="header-menu-action"
+                        aria-current={activeScreen === 'settings' ? 'page' : undefined}
+                        onClick={() => {
+                          setActiveScreen('settings');
+                          setUserDropdownOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          fontSize: '13px',
+                          color: 'var(--ink)',
+                          border: 'none',
+                          background: activeScreen === 'settings' ? 'var(--bg-cream-subtle)' : 'none',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.15s ease'
+                        }}
+                      >
+                        <Settings size={15} aria-hidden="true" />
+                        <span>Settings</span>
+                      </button>
+                    )}
+
                     {dashboardMode === 'customer' ? (
                       <button
+                        type="button"
+                        className="header-menu-action"
                         onClick={() => {
                           setUserDropdownOpen(false);
                           setDashboardMode('seller');
@@ -415,6 +493,8 @@ export default function Header({
                       </button>
                     ) : (
                       <button
+                        type="button"
+                        className="header-menu-action"
                         onClick={() => {
                           setUserDropdownOpen(false);
                           setDashboardMode('customer');
@@ -445,6 +525,8 @@ export default function Header({
                     )}
 
                     <button
+                      type="button"
+                      className="header-menu-action"
                       onClick={() => {
                         setUserDropdownOpen(false);
                         onOpenGoogleAuth();
@@ -473,6 +555,8 @@ export default function Header({
 
                     {onSwitchRole && (
                       <button
+                        type="button"
+                        className="header-menu-action"
                         onClick={() => {
                           setUserDropdownOpen(false);
                           onSwitchRole();
@@ -504,8 +588,7 @@ export default function Header({
                       </button>
                     )}
                   </div>
-                </div>
-              )}
+              </div>
             </div>
           ) : (
             <button
@@ -532,8 +615,12 @@ export default function Header({
 
           {/* Mobile Menu Toggle */}
           <button
+            type="button"
             className="mobile-menu-toggle"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation"
             style={{
               display: 'none',
               padding: '6px',
@@ -548,7 +635,7 @@ export default function Header({
       </div>
 
       {/* Subnavigation Bar: Tailored to Active Role */}
-      <nav style={{
+      <nav aria-label={dashboardMode === 'customer' ? 'Customer navigation' : 'Seller navigation'} style={{
         borderTop: '1px solid var(--border-cream-subtle)',
         backgroundColor: dashboardMode === 'seller' ? 'rgba(234, 244, 238, 0.85)' : '#FAF6F0'
       }}>
@@ -571,6 +658,9 @@ export default function Header({
             return (
               <button
                 key={item.id}
+                type="button"
+                className="header-nav-item"
+                aria-current={isActive ? 'page' : undefined}
                 onClick={() => {
                   setActiveScreen(item.id);
                   setMobileMenuOpen(false);
@@ -616,6 +706,8 @@ export default function Header({
           })}
           {dashboardMode === 'customer' && (
             <button
+              type="button"
+              className="header-nav-item header-merchant-nav-item"
               onClick={() => {
                 setDashboardMode('seller');
                 setActiveScreen('seller_hub');
@@ -652,17 +744,18 @@ export default function Header({
       </nav>
 
       {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div style={{
+      <nav id="mobile-navigation" aria-label="Mobile navigation" hidden={!mobileMenuOpen} style={{
           padding: '16px 24px 20px',
           backgroundColor: '#FFFFFF',
           borderBottom: '1px solid var(--border-cream)',
-          display: 'flex',
+          display: mobileMenuOpen ? 'flex' : 'none',
           flexDirection: 'column',
           gap: '8px'
         }}>
           {dashboardMode === 'customer' ? (
             <button
+              type="button"
+              className="header-mobile-nav-item"
               onClick={() => {
                 setDashboardMode('seller');
                 setActiveScreen('seller_hub');
@@ -690,6 +783,8 @@ export default function Header({
             </button>
           ) : (
             <button
+              type="button"
+              className="header-mobile-nav-item"
               onClick={() => {
                 setDashboardMode('customer');
                 setActiveScreen('explore');
@@ -720,6 +815,9 @@ export default function Header({
           {navItems.map((item) => (
             <button
               key={item.id}
+              type="button"
+              className="header-mobile-nav-item"
+              aria-current={activeScreen === item.id ? 'page' : undefined}
               onClick={() => {
                 setActiveScreen(item.id);
                 setMobileMenuOpen(false);
@@ -744,8 +842,7 @@ export default function Header({
               </div>
             </button>
           ))}
-        </div>
-      )}
+      </nav>
     </header>
   );
 }

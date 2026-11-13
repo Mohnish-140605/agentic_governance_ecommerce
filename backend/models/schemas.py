@@ -25,10 +25,18 @@ class ActionType(str, Enum):
     UPDATE_INVENTORY = "UPDATE_INVENTORY"
     UPDATE_PRICE = "UPDATE_PRICE"
     CREATE_PROMOTION = "CREATE_PROMOTION"
+    CREATE_LISTING = "CREATE_LISTING"
     
     # High-Impact / Sensitive Actions
     SETTLE_PAYMENT = "SETTLE_PAYMENT"
     INITIATE_REFUND = "INITIATE_REFUND"
+
+MERCHANT_ACTIONS = frozenset({
+    ActionType.UPDATE_INVENTORY,
+    ActionType.UPDATE_PRICE,
+    ActionType.CREATE_PROMOTION,
+    ActionType.CREATE_LISTING
+})
 
 class GovernanceDecision(str, Enum):
     AUTO_EXECUTE = "AUTO_EXECUTE"

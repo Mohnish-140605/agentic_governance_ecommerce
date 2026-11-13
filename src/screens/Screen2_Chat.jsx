@@ -969,14 +969,16 @@ export default function Screen2_Chat({
       </div>
 
       {/* Voice Input Modal */}
-      <VoiceModal
-        isOpen={voiceModalOpen}
-        onClose={() => setVoiceModalOpen(false)}
-        onTranscriptComplete={(text) => {
-          setInputVal(text);
-          setVoiceModalOpen(false);
-        }}
-      />
+      {voiceModalOpen && (
+        <VoiceModal
+          isOpen={voiceModalOpen}
+          onClose={() => setVoiceModalOpen(false)}
+          onTranscriptComplete={(text) => {
+            setInputVal(text);
+            setVoiceModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

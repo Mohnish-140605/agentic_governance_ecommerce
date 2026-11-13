@@ -4,7 +4,7 @@ Calculates a deterministic risk index R in [0, 100].
 Aligned with Section 4.D and Objective 5 of Project_Docs.docx.
 """
 
-from ..models.schemas import ActionProposal, RiskEvaluation, RiskLevel
+from ..models.schemas import ActionProposal, ActionType, MERCHANT_ACTIONS, RiskEvaluation, RiskLevel
 
 class RiskScorer:
     @staticmethod
@@ -21,23 +21,28 @@ class RiskScorer:
         else:
             breakdown["authorization_penalty"] = 0.0
 
-        # 2. Transaction Value Ratio (0 to 30 pts)
+        # Buyer spending policies do not apply to merchant catalog actions.
         price = proposal.requested_price
-        val_ratio = min(1.0, price / max(1.0, approval_threshold))
-        value_score = round(val_ratio * 30.0, 2)
-        score += value_score
-        breakdown["transaction_value_risk"] = value_score
-        if value_score > 20.0:
-            reasons.append(f"High transaction value relative to approval threshold ({value_score}/30).")
+        if proposal.action_type not in MERCHANT_ACTIONS:
+            val_ratio = min(1.0, price / max(1.0, approval_threshold))
+            value_score = round(val_ratio * 30.0, 2)
+            score += value_score
+            breakdown["transaction_value_risk"] = value_score
+            if value_score > 20.0:
+                reasons.append(f"High transaction value relative to approval threshold ({value_score}/30).")
 
-        # 3. Monthly Cap Ratio (0 to 30 pts)
-        cap_ratio = price / max(1.0, monthly_cap)
-        if cap_ratio > 1.0:
-            cap_score = 30.0
-            reasons.append("Price strictly exceeds monthly spending allowance (+30).")
+            cap_ratio = price / max(1.0, monthly_cap)
+            if cap_ratio > 1.0:
+                cap_score = 30.0
+                reasons.append("Price strictly exceeds monthly spending allowance (+30).")
+            else:
+                cap_score = round(cap_ratio * 20.0, 2)
+            score += cap_score
         else:
-            cap_score = round(cap_ratio * 20.0, 2)
-        score += cap_score
+            value_score = 0.0
+            cap_score = 0.0
+            breakdown["transaction_value_risk"] = value_score
+
         breakdown["monthly_cap_risk"] = cap_score
 
         # 4. Merchant Trust Factor (0 to 10 pts)

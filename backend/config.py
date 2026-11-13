@@ -39,8 +39,8 @@ class Settings:
 
     # ── LLM / Ollama ──────────────────────────────────────────────────
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
-    LLM_TIMEOUT_SECONDS: float = float(os.getenv("LLM_TIMEOUT_SECONDS", "5.0"))
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
+    LLM_TIMEOUT_SECONDS: float = float(os.getenv("LLM_TIMEOUT_SECONDS", "20.0"))
 
     # ── Governance SLA Thresholds ──────────────────────────────────────
     GOV_LATENCY_SLA_MS: float = float(os.getenv("GOV_LATENCY_SLA_MS", "500.0"))

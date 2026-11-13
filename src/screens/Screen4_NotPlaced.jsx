@@ -15,14 +15,49 @@ import { ALTERNATIVE_PRODUCTS } from '../data/mockData';
 
 export default function Screen4_NotPlaced({
   onNavigateToScreen,
-  onRaiseLimit,
   onAskAriaAboutProduct,
-  onShowToast: _onShowToast,
-  currentUser,
-  rules
+  rules,
+  guardrailItem = {}
 }) {
-  const userName = currentUser ? currentUser.name.split(' ')[0] : 'Priya';
-  const monthlyCap = rules ? rules.monthlyCap : 50000;
+  const hasBlockedRequest = Boolean(guardrailItem.name);
+  const monthlyCap = Number(guardrailItem.monthlyCap ?? (rules ? rules.monthlyCap : 50000));
+  const blockedPrice = Number(guardrailItem.price);
+  const blockedName = guardrailItem.name;
+  const blockedMerchant = guardrailItem.merchant || 'Not provided';
+  const shopperId = guardrailItem.shopperId || 'Not provided';
+  const ticketRef = guardrailItem.ticketRef || 'Not provided';
+  const blockReason = guardrailItem.reason || 'The governance service blocked this request.';
+
+  if (!hasBlockedRequest) {
+    return (
+      <div className="not-placed-screen-wrap animate-fade-in" style={{ paddingBottom: '80px' }}>
+        <main style={{ maxWidth: 'var(--max-width)', margin: '0 auto', padding: '36px 24px' }}>
+          <section role="status" style={{
+            maxWidth: '680px',
+            margin: '48px auto',
+            padding: '40px 28px',
+            textAlign: 'center',
+            background: '#FFFFFF',
+            border: '1px solid var(--border-cream)',
+            borderRadius: '24px',
+            boxShadow: 'var(--shadow-warm-sm)'
+          }}>
+            <ShieldAlert size={36} color="var(--forest-green)" style={{ margin: '0 auto 14px' }} />
+            <h1 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.4rem)', marginBottom: '8px' }}>
+              No blocked requests
+            </h1>
+            <p style={{ fontSize: '15px', marginBottom: '22px' }}>
+              A request blocked by governance will appear here. No blocked purchase is recorded right now.
+            </p>
+            <button className="pill-button-primary" onClick={() => onNavigateToScreen('explore')}>
+              Back to Explore <ArrowRight size={16} />
+            </button>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="not-placed-screen-wrap animate-fade-in" style={{
       backgroundColor: '#FAF5EE',
@@ -65,7 +100,7 @@ export default function Screen4_NotPlaced({
             marginBottom: '16px'
           }}>
             <ShieldAlert size={14} />
-            <span>ARIA SHOPPER GUARDRAIL — SAFE HOLD</span>
+            <span>GOVERNANCE BLOCK · NO ORDER RECORDED</span>
           </div>
 
           <h1 style={{
@@ -75,7 +110,7 @@ export default function Screen4_NotPlaced({
             color: 'var(--ink)',
             marginBottom: '14px'
           }}>
-            Let's pause on this one.
+            This request was not placed.
           </h1>
 
           <p style={{
@@ -85,7 +120,7 @@ export default function Screen4_NotPlaced({
             margin: '0 auto',
             lineHeight: 1.6
           }}>
-            This one is <strong style={{ color: 'var(--ink)' }}>₹75,000</strong> and your self-imposed monthly ceiling is <strong style={{ color: 'var(--ink)' }}>₹{monthlyCap.toLocaleString('en-IN')}</strong>. No worries at all. Your intent is protected, and here are thoughtful alternatives curated inside your comfort zone.
+            <strong style={{ color: 'var(--ink)' }}>{blockedName}</strong> was not ordered. Governance reason: {blockReason}
           </p>
         </div>
 
@@ -96,21 +131,20 @@ export default function Screen4_NotPlaced({
             <div className="trust-receipt-header" style={{ backgroundColor: '#FFFBFB' }}>
               <div>
                 <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--coral-dark)' }}>
-                  ATTEMPTED INTENT SLIP
+                  GOVERNANCE RECORD
                 </div>
                 <div style={{ fontFamily: 'var(--font-serif)', fontSize: '19px', fontWeight: 600 }}>
-                  MacBook Air M2 (16GB, 256GB Starlight)
+                  {blockedName}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>
-                  Merchant: UnboxCraft Authorized Studio · Delhi Hub
+                  Merchant information: {blockedMerchant}
                 </div>
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>REQUESTED TOTAL</div>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--coral-dark)' }}>₹75,000</div>
-                <div style={{ fontSize: '11px', color: 'var(--coral-dark)', fontWeight: 600 }}>
-                  Limit delta: +₹{(Math.max(0, 75000 - monthlyCap)).toLocaleString('en-IN')}
+                <div style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>REQUESTED PRICE</div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--coral-dark)' }}>
+                  {Number.isFinite(blockedPrice) ? `₹${blockedPrice.toLocaleString('en-IN')}` : 'Not provided'}
                 </div>
               </div>
             </div>
@@ -118,21 +152,21 @@ export default function Screen4_NotPlaced({
             {/* Metadata Grid */}
             <div className="trust-receipt-details" style={{ backgroundColor: '#FFFBFB' }}>
               <div className="receipt-meta-box">
-                <div className="receipt-meta-label">Active Spend Rule</div>
-                <div className="receipt-meta-value">₹{monthlyCap.toLocaleString('en-IN')} / month</div>
-                <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Single-purchase threshold</div>
+                <div className="receipt-meta-label">Monthly cap</div>
+                <div className="receipt-meta-value">₹{monthlyCap.toLocaleString('en-IN')}</div>
+                <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Configured buyer rule</div>
               </div>
 
               <div className="receipt-meta-box">
                 <div className="receipt-meta-label">Shopper ID</div>
-                <div className="receipt-meta-value">{userName} (#CRN-8821)</div>
+                <div className="receipt-meta-value">{shopperId}</div>
                 <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Aria autonomous guard</div>
               </div>
 
               <div className="receipt-meta-box">
-                <div className="receipt-meta-label">Order Status</div>
-                <div className="receipt-meta-value" style={{ color: 'var(--coral-dark)' }}>Unplaced · Paused</div>
-                <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Zero payment deducted</div>
+                <div className="receipt-meta-label">Order status</div>
+                <div className="receipt-meta-value" style={{ color: 'var(--coral-dark)' }}>No order recorded</div>
+                <div style={{ fontSize: '10.5px', color: 'var(--ink-muted)' }}>Payment is not connected</div>
               </div>
             </div>
 
@@ -146,10 +180,10 @@ export default function Screen4_NotPlaced({
               <div className="stamps-header">
                 <div className="stamps-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <ShieldAlert size={14} color="var(--coral-dark)" />
-                  <span>ARIA SAFETY VERIFICATION TRIPLE-CHECK</span>
+                  <span>GOVERNANCE DECISION</span>
                 </div>
                 <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--ink-muted)' }}>
-                  TICKET REF #CRN-99410-HLD
+                  PROPOSAL REF #{ticketRef}
                 </div>
               </div>
 
@@ -159,12 +193,12 @@ export default function Screen4_NotPlaced({
                   <div className="stamp-emblem">
                     <X size={22} strokeWidth={2.5} />
                   </div>
-                  <div className="stamp-name" style={{ color: 'var(--coral-dark)' }}>STAMP 01 · GUARDRAIL</div>
+                  <div className="stamp-name" style={{ color: 'var(--coral-dark)' }}>DECISION</div>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--coral-dark)', marginBottom: '3px' }}>
-                    Exceeds monthly allowance
+                    Blocked by governance
                   </div>
                   <div className="stamp-desc">
-                    ₹75,000 exceeds ₹{monthlyCap.toLocaleString('en-IN')} cap by ₹{(Math.max(0, 75000 - monthlyCap)).toLocaleString('en-IN')}.
+                    {blockReason}
                   </div>
                 </div>
 
@@ -173,12 +207,12 @@ export default function Screen4_NotPlaced({
                   <div className="stamp-emblem">
                     <Hand size={22} strokeWidth={2.5} />
                   </div>
-                  <div className="stamp-name">STAMP 02 · APPROVAL</div>
+                  <div className="stamp-name">ORDER</div>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--butter-yellow-dark)', marginBottom: '3px' }}>
-                    Approval paused
+                    Not recorded
                   </div>
                   <div className="stamp-desc">
-                    Pending deliberate user confirmation or re-scoping.
+                    No purchase was placed by this request.
                   </div>
                 </div>
 
@@ -187,12 +221,12 @@ export default function Screen4_NotPlaced({
                   <div className="stamp-emblem">
                     <Check size={22} strokeWidth={2.5} />
                   </div>
-                  <div className="stamp-name">STAMP 03 · INTEGRITY</div>
+                  <div className="stamp-name">SELLER DETAILS</div>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--forest-green)', marginBottom: '3px' }}>
-                    Seller verified
+                    Not verified
                   </div>
                   <div className="stamp-desc">
-                    Merchant credentials & return escrow fully greenlit.
+                    Seller identity and fulfillment are not verified in this demo.
                   </div>
                 </div>
               </div>
@@ -210,29 +244,25 @@ export default function Screen4_NotPlaced({
               gap: '16px'
             }}>
               <div style={{ fontSize: '13px', color: 'var(--ink-secondary)', maxWidth: '300px' }}>
-                No penalty. Your cart remains intact in a safe 48-hour cooling basket.
+                Payment and fulfillment are not connected in this demo.
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <button
                   className="pill-button-secondary"
-                  onClick={() => {
-                    if (onRaiseLimit) onRaiseLimit(75000);
-                    onNavigateToScreen('rules');
-                  }}
+                  onClick={() => onNavigateToScreen('rules')}
                   style={{ fontSize: '13.5px' }}
                 >
                   <Sliders size={14} />
-                  <span>Raise my rule limit to ₹75,000</span>
+                  <span>Review spending rules</span>
                 </button>
 
                 <button
                   className="pill-button-primary"
                   onClick={() => {
-                    onAskAriaAboutProduct('Could you help me find great laptop options strictly within my ₹50,000 cap?');
+                    onAskAriaAboutProduct(`Could you help me find alternatives to ${blockedName} strictly within my ₹${monthlyCap.toLocaleString('en-IN')} cap?`);
                     onNavigateToScreen('explore');
-                  }}
-                  style={{ fontSize: '13.5px' }}
+                  }}                  style={{ fontSize: '13.5px' }}
                 >
                   <MessageSquare size={14} />
                   <span>Chat with Aria about alternatives</span>
@@ -255,13 +285,13 @@ export default function Screen4_NotPlaced({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: 'var(--forest-green)', marginBottom: '4px' }}>
                 <CheckCircle2 size={14} />
-                <span>ZERO-SACRIFICE ALTERNATIVES</span>
+                <span>EXAMPLE ALTERNATIVES</span>
               </div>
               <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 600 }}>
-                Curated options within your ₹50,000 cap
+                Options to consider under your ₹{monthlyCap.toLocaleString('en-IN')} cap
               </h2>
               <p style={{ fontSize: '14px', color: 'var(--ink-secondary)' }}>
-                Handpicked machines with calibrated thermals, pristine keyboards, and full Cairn warranty.
+                These demo catalog examples are not independently verified. Confirm current price, seller, stock, and warranty before ordering.
               </p>
             </div>
 
@@ -277,7 +307,7 @@ export default function Screen4_NotPlaced({
               fontWeight: 600
             }}>
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-              <span>All 3 instantly payable under your active rule</span>
+              <span>Indicative only · governance check required</span>
             </div>
           </div>
 
@@ -312,7 +342,7 @@ export default function Screen4_NotPlaced({
                     <div style={{ position: 'absolute', top: '12px', left: '12px' }}>
                       <span className="badge-placed" style={{ backgroundColor: 'rgba(234, 247, 238, 0.95)' }}>
                         <CheckCircle2 size={12} />
-                        {prod.tag}
+                        Demo suggestion
                       </span>
                     </div>
                     <div style={{
@@ -363,7 +393,7 @@ export default function Screen4_NotPlaced({
                     borderTop: '1px solid var(--border-cream-subtle)'
                   }}>
                     <div>
-                      <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>Cairn Price</div>
+                      <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>Example price</div>
                       <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink)' }}>
                         ₹{prod.price.toLocaleString('en-IN')}
                       </div>
@@ -417,7 +447,7 @@ export default function Screen4_NotPlaced({
                   Shopping at your pace, not the algorithm's.
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--ink-secondary)' }}>
-                  Your ₹50,000 safety guardrail can be adjusted anytime from My Rules with biometric re-authentication.
+                  Your ₹{monthlyCap.toLocaleString('en-IN')} safety guardrail can be adjusted anytime from My Rules with biometric re-authentication.
                 </div>
               </div>
             </div>

@@ -87,7 +87,9 @@ class Database:
                 flag_reason TEXT,
                 destination TEXT,
                 sha256 TEXT,
-                created_at REAL
+                created_at REAL,
+                carrier_name TEXT,
+                tracking_ref TEXT
             )""",
             """CREATE TABLE IF NOT EXISTS audit_ledger (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,30 +131,51 @@ class Database:
             for stmt in stmts:
                 session.execute(text(stmt))
 
-            # Seed default listings if empty
-            count = session.execute(text("SELECT COUNT(*) FROM merchant_listings")).scalar()
-            if count == 0:
-                for row in [
-                    ("SKU-7729", "Minimal Japanese Ceramic Mug (Chalk White)", "Studio Hasami Crafts", 1800.0, 24, "Living", "VERIFIED", "Verified & Active"),
-                    ("SKU-8190", "Solid Walnut Monitor Shelf (Dual Deck)", "Grovemade Artisan Studio", 14500.0, 8, "Hardware", "VERIFIED", "Verified & Active"),
-                    ("SKU-9912", "Analog Quartz Desk Clock (Brushed Brass)", "Lemnos Clocks Japan", 6200.0, 0, "Living", "HOLD", "Restock Scheduled"),
-                ]:
-                    session.execute(text(
-                        "INSERT OR IGNORE INTO merchant_listings (id,name,merchant,price,stock,category,badge,status,created_at) "
-                        "VALUES (:id,:name,:merchant,:price,:stock,:category,:badge,:status,:ts)"
-                    ), dict(zip(["id","name","merchant","price","stock","category","badge","status","ts"], row + (time.time(),))))
+            legacy_listings = [
+                ("SKU-7729", "Minimal Japanese Ceramic Mug (Chalk White)", "Studio Hasami Crafts", 1800.0, 24, "Living", "VERIFIED", "Verified & Active"),
+                ("SKU-8190", "Solid Walnut Monitor Shelf (Dual Deck)", "Grovemade Artisan Studio", 14500.0, 8, "Hardware", "VERIFIED", "Verified & Active"),
+                ("SKU-9912", "Analog Quartz Desk Clock (Brushed Brass)", "Lemnos Clocks Japan", 6200.0, 0, "Living", "HOLD", "Restock Scheduled"),
+            ]
+            for row in legacy_listings:
+                session.execute(text("""
+                    DELETE FROM merchant_listings
+                    WHERE id=:id AND name=:name AND merchant=:merchant
+                      AND price=:price AND stock=:stock AND category=:category
+                      AND badge=:badge AND status=:status
+                """), dict(zip(
+                    ["id", "name", "merchant", "price", "stock", "category", "badge", "status"],
+                    row
+                )))
 
-            # Seed default orders if empty
-            count = session.execute(text("SELECT COUNT(*) FROM orders")).scalar()
-            if count == 0:
-                for row in [
-                    ("CRN-88421","usr_priya","prod-dell","Dell XPS 13 Plus","Pure White Edition · CNC Machined Aluminum & Gorilla Glass",120000.0,"Dell Direct Official Flagship","needs_ok","Rule #04 triggered: Exceeds auto threshold","Jor Bagh, New Delhi","9e88fa12c309b4d...77e1"),
-                    ("CRN-9842","usr_priya","prod-framework","Framework Laptop 13","Matte anti-glare display, AMD Ryzen 7",94990.0,"Direct Partner Direct Delivery","placed",None,"Jor Bagh, New Delhi","a71b80e43...10ff"),
-                ]:
-                    session.execute(text(
-                        "INSERT OR IGNORE INTO orders (id,user_id,product_id,product_name,specs,price,merchant,status,flag_reason,destination,sha256,created_at) "
-                        "VALUES (:id,:uid,:pid,:pname,:specs,:price,:merchant,:status,:flag,:dest,:sha,:ts)"
-                    ), dict(zip(["id","uid","pid","pname","specs","price","merchant","status","flag","dest","sha","ts"], row + (time.time(),))))
+            legacy_orders = [
+                ("CRN-88421", "usr_priya", "prod-dell", "Dell XPS 13 Plus",
+                 "Pure White Edition · CNC Machined Aluminum & Gorilla Glass",
+                 120000.0, "Dell Direct Official Flagship", "needs_ok",
+                 "Rule #04 triggered: Exceeds auto threshold", "Jor Bagh, New Delhi",
+                 "9e88fa12c309b4d...77e1"),
+                ("CRN-9842", "usr_priya", "prod-framework", "Framework Laptop 13",
+                 "Matte anti-glare display, AMD Ryzen 7", 94990.0,
+                 "Direct Partner Direct Delivery", "placed", None,
+                 "Jor Bagh, New Delhi", "a71b80e43...10ff"),
+            ]
+            for row in legacy_orders:
+                params = dict(zip(
+                    ["id", "user_id", "product_id", "product_name", "specs", "price",
+                     "merchant", "status", "flag_reason", "destination", "sha256"],
+                    row
+                ))
+                flag_match = (
+                    "flag_reason IS NULL"
+                    if params["flag_reason"] is None
+                    else "flag_reason=:flag_reason"
+                )
+                session.execute(text(f"""
+                    DELETE FROM orders
+                    WHERE id=:id AND user_id=:user_id AND product_id=:product_id
+                      AND product_name=:product_name AND specs=:specs AND price=:price
+                      AND merchant=:merchant AND status=:status AND {flag_match}
+                      AND destination=:destination AND sha256=:sha256
+                """), params)
 
             session.commit()
 
@@ -206,13 +229,22 @@ class Database:
             })
             session.commit()
 
-    def update_order_status(self, order_id: str, new_status: str):
+    def update_order_status(self, order_id: str, new_status: str,
+                            tracking_ref: Optional[str] = None,
+                            carrier_name: Optional[str] = None):
         with self._get_session() as session:
-            session.execute(
-                text("UPDATE orders SET status=:status WHERE id=:id"),
-                {"status": new_status, "id": order_id}
+            result = session.execute(
+                text("""
+                    UPDATE orders SET status=:status,
+                        carrier_name=COALESCE(:carrier_name, carrier_name),
+                        tracking_ref=COALESCE(:tracking_ref, tracking_ref)
+                    WHERE id=:id
+                """),
+                {"status": new_status, "carrier_name": carrier_name,
+                 "tracking_ref": tracking_ref, "id": order_id}
             )
             session.commit()
+            return result.rowcount > 0
 
     def get_orders(self, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         with self._get_session() as session:

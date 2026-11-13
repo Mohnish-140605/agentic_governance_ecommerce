@@ -12,7 +12,6 @@ import {
   X,
   Plus,
   ShieldAlert,
-  Cpu,
   FileCheck,
   AlertTriangle,
   ArrowUpRight,
@@ -23,10 +22,11 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui';
 import TrustReceipt from '../components/TrustReceipt';
+import VendorOffersPanel from '../components/VendorOffersPanel';
 import AriaCopilotLogo from '../components/AriaCopilotLogo';
 import VoiceModal from '../components/VoiceModal';
 import { formatFirstName } from '../data/navigation';
-import { sendAgentChat, searchOnlineProducts } from '../services/api';
+import { sendAgentChat } from '../services/api';
 
 let homeMsgCounter = 600;
 
@@ -255,6 +255,7 @@ export default function Screen1_Home({
   onApproveOrder,
   onRejectOrder,
   onAddOrder,
+  onBlockedItemDetected,
   chatPrompt = '',
   setChatPrompt
 }) {
@@ -268,7 +269,7 @@ export default function Screen1_Home({
   // ── Integrated Aria Activity & Conversation State ───────────────────────────
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
-  
+
   // ── 5-Stage Agent Execution Pipeline State ──────────────────────────────────
   const [agentExecuting, setAgentExecuting] = useState(false);
   const [agentStep, setAgentStep] = useState(0); // 0 to 4
@@ -370,8 +371,8 @@ export default function Screen1_Home({
       // General keyword search
       matchedProducts = MASTER_CATALOG.filter((p) => {
         return p.keywords.some((k) => lower.includes(k)) ||
-               p.name.toLowerCase().includes(lower) ||
-               p.category.toLowerCase().includes(lower);
+          p.name.toLowerCase().includes(lower) ||
+          p.category.toLowerCase().includes(lower);
       });
     }
 
@@ -415,14 +416,14 @@ export default function Screen1_Home({
       reasonCode = 'GOV-BLOCK-02';
       reasonText = `Policy Violation: Item amount (₹${itemPrice.toLocaleString('en-IN')}) exceeds self-imposed monthly ceiling (₹${monthlyCap.toLocaleString('en-IN')}) by ₹${(itemPrice - monthlyCap).toLocaleString('en-IN')}. Pre-execution block enforced. Zero funds debited.`;
       ariaMessage = `The ${primaryItem.name} is priced at ₹${itemPrice.toLocaleString('en-IN')}, which exceeds your monthly ceiling of ₹${monthlyCap.toLocaleString('en-IN')}. The Pre-Execution Governance Engine has halted this transaction safely before debiting any funds.`;
-    } 
+    }
     // Check 2: Exceeds approval threshold -> HUMAN APPROVAL
     else if (itemPrice > approvalThreshold) {
       decision = 'HUMAN_APPROVAL';
       reasonCode = 'GOV-APPR-04';
       reasonText = `Item price (₹${itemPrice.toLocaleString('en-IN')}) is permitted by wallet allowance, but exceeds your automatic execution threshold of ₹${approvalThreshold.toLocaleString('en-IN')}. Suspended on a 15-minute peace-of-mind hold awaiting human confirmation.`;
       ariaMessage = `The ${primaryItem.name} (₹${itemPrice.toLocaleString('en-IN')}) is available, but exceeds your automatic threshold of ₹${approvalThreshold.toLocaleString('en-IN')}. In accordance with your governance rules, this order is held for 15 minutes awaiting your explicit approval.`;
-    } 
+    }
     // Check 3: Auto-Execute eligible
     else {
       decision = 'AUTO_EXECUTE';
@@ -442,6 +443,7 @@ export default function Screen1_Home({
     const executionPackage = {
       query: queryText,
       isExplicitBuy,
+      backendConfirmed: false,
       parsedBudget: parsedBudget || primaryItem.price,
       matchedProducts,
       primaryItem,
@@ -450,34 +452,59 @@ export default function Screen1_Home({
       reasonText,
       ariaMessage,
       orderId,
-      receiptData: (isExplicitBuy && decision === 'AUTO_EXECUTE') ? {
-        id: orderId,
-        item: primaryItem.name,
-        price: primaryItem.price,
-        status: 'placed',
-        authorizedAt: 'Just now',
-        paymentChannel: 'HDFC Priority ••4902',
-        sha256: `7f920eb18a24...${orderId.slice(-4)}`
-      } : null
+      receiptData: null
     };
 
     setAgentActionData(executionPackage);
 
     const ariaMsgId = ++homeMsgCounter;
+    let backendResponse = null;
+    let backendRequestComplete = false;
+    let animationComplete = false;
+    let finalized = false;
+    let finalizeWorkflow;
+    const finalizeWhenReady = () => {
+      if (animationComplete && backendRequestComplete && !finalized) {
+        finalized = true;
+        finalizeWorkflow(backendResponse);
+      }
+    };
 
     // Asynchronously synchronize with FastAPI Governance Engine & Live Online Search
-    sendAgentChat(queryText, currentUser?.id || 'usr_priya').then((serverData) => {
-      if (serverData?.workflow_state?.governance_result) {
-        const gov = serverData.workflow_state.governance_result;
-        if (gov.audit_hash) {
-          executionPackage.receiptData = {
-            ...executionPackage.receiptData,
-            sha256: gov.audit_hash.slice(0, 24) + '...' + gov.audit_hash.slice(-4)
+    sendAgentChat(queryText, currentUser?.id || 'usr_priya', { explicitOrder: isExplicitBuy }).then((serverData) => {
+      backendResponse = serverData;
+      const proposal = serverData?.workflow_state?.proposal;
+      const governance = serverData?.workflow_state?.governance_result;
+      if (serverData?.status === 'success' && proposal?.proposal_id && governance) {
+        executionPackage.backendConfirmed = true;
+        const serverOrderId = `CRN-${String(proposal.proposal_id).slice(-5)}`;
+        const serverProduct = {
+          ...executionPackage.primaryItem,
+          id: proposal.product_id || executionPackage.primaryItem.id,
+          name: proposal.product_name || executionPackage.primaryItem.name,
+          price: Number(proposal.requested_price),
+          specs: proposal.metadata?.specs || executionPackage.primaryItem.specs,
+          partner: proposal.merchant_id || executionPackage.primaryItem.partner
+        };
+        executionPackage.governedProductId = serverProduct.id;
+        executionPackage.orderId = serverOrderId;
+        executionPackage.proposalId = proposal.proposal_id;
+        executionPackage.decision = governance.decision;
+        executionPackage.reasonCode = governance.reason_code;
+        executionPackage.reasonText = governance.reason_text;
+        if (isExplicitBuy) {
+          executionPackage.primaryItem = serverProduct;
+          executionPackage.receiptData = governance.decision === 'BLOCK' ? null : {
+            id: serverOrderId,
+            item: serverProduct.name,
+            price: serverProduct.price,
+            status: governance.decision === 'HUMAN_APPROVAL' ? 'needs_ok' : 'placed',
+            authorizedAt: new Date().toLocaleString(),
+            sha256: governance.audit_hash || null
           };
         }
       }
-      // If live online products were fetched dynamically from web, replace the cards with exact matches!
-      if (serverData?.live_online_products && serverData.live_online_products.length > 0) {
+      if (!isExplicitBuy && serverData?.live_online_products && serverData.live_online_products.length > 0) {
         const formattedLive = serverData.live_online_products.map(lp => ({
           id: lp.id,
           name: lp.name,
@@ -494,6 +521,8 @@ export default function Screen1_Home({
           keywords: [lp.name.toLowerCase()],
           rationale: `Live online match fetched for "${queryText}". Pre-audited against your spending cap.`
         }));
+        executionPackage.primaryItem = formattedLive[0];
+        executionPackage.matchedProducts = formattedLive;
 
         setAgentActionData(prev => {
           if (!prev) return prev;
@@ -510,7 +539,7 @@ export default function Screen1_Home({
           return prev.map(m => {
             if (m.sender === 'aria' && m.id === ariaMsgId) {
               const topItem = formattedLive[0];
-              const updatedText = topItem.price > monthlyCap 
+              const updatedText = topItem.price > monthlyCap
                 ? `The ${topItem.name} is priced at ₹${topItem.price.toLocaleString('en-IN')}, which exceeds your monthly ceiling of ₹${monthlyCap.toLocaleString('en-IN')}. The Pre-Execution Governance Engine has halted this transaction safely before debiting any funds.`
                 : topItem.price > approvalThreshold
                   ? `The ${topItem.name} (₹${topItem.price.toLocaleString('en-IN')}) is available, but exceeds your automatic threshold of ₹${approvalThreshold.toLocaleString('en-IN')}. In accordance with your governance rules, this order is held for 15 minutes awaiting your explicit approval.`
@@ -531,7 +560,13 @@ export default function Screen1_Home({
           });
         });
       }
-    }).catch(() => {});
+    }).catch((error) => {
+      console.error('Unable to verify the shopping request with the backend:', error);
+      backendResponse = null;
+    }).finally(() => {
+      backendRequestComplete = true;
+      finalizeWhenReady();
+    });
 
     // Append User Message to conversation
     const userMsg = {
@@ -557,9 +592,77 @@ export default function Screen1_Home({
     // Step 4: Validate budget, seller & rules (at 1550ms)
     const t4 = setTimeout(() => setAgentStep(4), 1550);
 
-    // Finalize Results (at 1950ms)
+    // Keep the visual stepper's minimum duration, then wait for the backend result.
     const t5 = setTimeout(() => {
+      animationComplete = true;
+      finalizeWhenReady();
+    }, 1950);
+
+    finalizeWorkflow = (serverData) => {
       setAgentExecuting(false);
+
+      const serverProposal = serverData?.workflow_state?.proposal;
+      const serverGovernance = serverData?.workflow_state?.governance_result;
+      const backendConfirmed = serverData?.status === 'success'
+        && Boolean(serverProposal?.proposal_id)
+        && Boolean(serverGovernance)
+        && ['AUTO_EXECUTE', 'HUMAN_APPROVAL', 'BLOCK'].includes(serverGovernance.decision);
+      const finalDecision = backendConfirmed
+        ? isExplicitBuy ? serverGovernance.decision : 'SEARCH_ONLY'
+        : 'UNCONFIRMED';
+      const finalOrderId = backendConfirmed
+        ? `CRN-${String(serverProposal.proposal_id).slice(-5)}`
+        : orderId;
+      const finalItem = backendConfirmed && isExplicitBuy
+        ? executionPackage.primaryItem
+        : primaryItem;
+      let finalReason = backendConfirmed && isExplicitBuy
+        ? serverGovernance.reason_text || reasonText
+        : 'The governance service did not confirm a purchase decision.';
+      let finalMessage = backendConfirmed
+        ? ariaMessage
+        : 'I could not confirm availability or governance with the service. These are demo catalog suggestions; no order was placed.';
+
+      if (isExplicitBuy && !backendConfirmed) {
+        finalReason = 'The governance service did not confirm this order. No order was recorded.';
+        finalMessage = 'I could not confirm this order with the governance service. No order has been recorded. Please try again when the service is available.';
+        onShowToast?.('No order was recorded because governance did not confirm the request.');
+      } else if (isExplicitBuy && finalDecision === 'BLOCK') {
+        finalMessage = serverGovernance.reason_text || 'Governance blocked this order. No order was recorded.';
+        onShowToast?.('Governance blocked this order. No order was recorded.');
+      } else if (isExplicitBuy && finalDecision === 'HUMAN_APPROVAL') {
+        finalMessage = `Order #${finalOrderId} is on hold and needs your approval before it can proceed.`;
+      } else if (isExplicitBuy && finalDecision === 'AUTO_EXECUTE') {
+        finalMessage = `Governance recorded order #${finalOrderId} for ${finalItem.name}. Payment and fulfillment are not connected in this demo.`;
+      } else if (!isExplicitBuy && backendConfirmed) {
+        finalReason = 'Search only. No purchase authorization was requested and no order was placed.';
+        finalMessage = 'Here are some suggestions for your request. No order was placed. Ask me to order a specific option if you want a purchase governance check.';
+      }
+
+      executionPackage.orderId = finalOrderId;
+      executionPackage.decision = finalDecision;
+      executionPackage.backendConfirmed = backendConfirmed;
+      executionPackage.reasonCode = backendConfirmed
+        ? serverGovernance.reason_code || reasonCode
+        : reasonCode;
+      executionPackage.reasonText = finalReason;
+      executionPackage.ariaMessage = finalMessage;
+      if (!backendConfirmed || finalDecision === 'BLOCK') {
+        executionPackage.receiptData = null;
+      }
+      setAgentActionData({ ...executionPackage });
+
+      if (isExplicitBuy && backendConfirmed && finalDecision === 'BLOCK') {
+        onBlockedItemDetected?.({
+          name: finalItem.name,
+          price: finalItem.price,
+          merchant: finalItem.partner,
+          monthlyCap,
+          shopperId: currentUser?.id || userName,
+          ticketRef: serverProposal.proposal_id,
+          reason: finalReason
+        });
+      }
 
       // Aria Response Message
       const ariaMsg = {
@@ -568,13 +671,13 @@ export default function Screen1_Home({
         name: 'Aria',
         time: 'Just now',
         governance: {
-          decision,
-          reasonCode,
-          reasonText,
-          orderId,
+          decision: finalDecision,
+          reasonCode: executionPackage.reasonCode,
+          reasonText: finalReason,
+          orderId: finalOrderId,
           isExplicitBuy
         },
-        text: ariaMessage
+        text: finalMessage
       };
 
       const newMsgs = [ariaMsg];
@@ -594,43 +697,45 @@ export default function Screen1_Home({
       setMessages((prev) => [...prev, ...newMsgs]);
 
       // Synchronize with App.jsx orders state
-      if (isExplicitBuy && onAddOrder) {
-        if (decision === 'AUTO_EXECUTE') {
+      if (isExplicitBuy && backendConfirmed && onAddOrder) {
+        if (finalDecision === 'AUTO_EXECUTE') {
           onAddOrder({
-            id: orderId,
-            item: primaryItem.name,
-            subtitle: primaryItem.specs,
-            price: primaryItem.price,
+            id: finalOrderId,
+            proposalId: serverProposal.proposal_id,
+            item: finalItem.name,
+            subtitle: finalItem.specs,
+            price: finalItem.price,
             status: 'placed',
-            timestamp: 'Just now',
-            merchant: primaryItem.partner,
-            image: primaryItem.image,
+            timestamp: new Date().toLocaleString(),
+            merchant: finalItem.partner,
+            image: finalItem.image,
             destination: `${currentLocation ? currentLocation.city : 'Bengaluru'} Residence`,
-            sha256: executionPackage.receiptData?.sha256 || '8b91a27e...'
+            sha256: serverGovernance.audit_hash || null
           });
-          if (onShowToast) onShowToast(`Order #${orderId} AUTO-EXECUTED under your budget cap.`);
-        } else if (decision === 'HUMAN_APPROVAL') {
+          onShowToast?.(`Order #${finalOrderId} recorded by governance.`);
+        } else if (finalDecision === 'HUMAN_APPROVAL') {
           onAddOrder({
-            id: orderId,
-            item: primaryItem.name,
-            subtitle: primaryItem.specs,
-            price: primaryItem.price,
+            id: finalOrderId,
+            proposalId: serverProposal.proposal_id,
+            item: finalItem.name,
+            subtitle: finalItem.specs,
+            price: finalItem.price,
             status: 'needs_ok',
-            timestamp: 'Just now',
-            merchant: primaryItem.partner,
-            image: primaryItem.image,
-            flagReason: reasonText,
+            timestamp: new Date().toLocaleString(),
+            merchant: finalItem.partner,
+            image: finalItem.image,
+            flagReason: finalReason,
             destination: `${currentLocation ? currentLocation.city : 'Bengaluru'} Residence`,
-            sha256: '9e88fa12c309b4d...77e1'
+            sha256: serverGovernance.audit_hash || null
           });
-          if (onShowToast) onShowToast(`Order #${orderId} held for 15-minute Human Approval.`);
+          onShowToast?.(`Order #${finalOrderId} is waiting for your approval.`);
         }
       }
 
       setTimeout(() => {
         chatSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 100);
-    }, 1950);
+    };
 
     return () => {
       clearTimeout(t1);
@@ -639,7 +744,7 @@ export default function Screen1_Home({
       clearTimeout(t4);
       clearTimeout(t5);
     };
-  }, [userName, approvalThreshold, monthlyCap, currentLocation, onAddOrder, onShowToast]);
+  }, [userName, approvalThreshold, monthlyCap, currentLocation, currentUser?.id, onAddOrder, onBlockedItemDetected, onShowToast]);
 
   // Synchronize when external prompt is provided
   useEffect(() => {
@@ -661,16 +766,17 @@ export default function Screen1_Home({
     runAgentWorkflow(`Order ${product.name} for ₹${product.price.toLocaleString('en-IN')}`, product);
   };
 
-  const handleDirectApprove = (orderId) => {
-    if (onApproveOrder) onApproveOrder(orderId);
-    if (onShowToast) onShowToast(`Order #${orderId} authorized by human! Dispatched to verified seller.`);
+  const handleDirectApprove = async (orderId) => {
+    const confirmed = await onApproveOrder?.(orderId);
+    if (confirmed !== true) return;
+    if (onShowToast) onShowToast(`Approval for order #${orderId} was recorded. Seller fulfillment is pending.`);
     setMessages((prev) =>
       prev.map((m) => {
         if (m.governance?.orderId === orderId) {
           return {
             ...m,
             governance: { ...m.governance, decision: 'AUTO_EXECUTE', reasonText: 'Explicit Human Approval Granted.' },
-            text: `Thank you, ${userName}! Human confirmation verified. Order #${orderId} is now authorized and dispatched.`
+            text: `Thank you, ${userName}! Approval for order #${orderId} is recorded. Seller fulfillment is pending.`
           };
         }
         return m;
@@ -678,16 +784,17 @@ export default function Screen1_Home({
     );
   };
 
-  const handleDirectReject = (orderId) => {
-    if (onRejectOrder) onRejectOrder(orderId);
-    if (onShowToast) onShowToast(`Order #${orderId} hold released. Zero funds debited.`);
+  const handleDirectReject = async (orderId) => {
+    const confirmed = await onRejectOrder?.(orderId);
+    if (confirmed !== true) return;
+    if (onShowToast) onShowToast(`Order #${orderId} was released.`);
     setMessages((prev) =>
       prev.map((m) => {
         if (m.governance?.orderId === orderId) {
           return {
             ...m,
             governance: { ...m.governance, decision: 'BLOCK', reasonText: 'User released hold. Action aborted safely.' },
-            text: `Order #${orderId} hold released. Zero funds debited and reserve hold removed.`
+            text: `Order #${orderId} was released following your decision.`
           };
         }
         return m;
@@ -695,28 +802,13 @@ export default function Screen1_Home({
     );
   };
 
-  // 5 Step Labels for Pre-Execution Governance Sequence
-  const STEP_DETAILS = [
-    {
-      title: "1. Understand User Request",
-      subtext: agentActionData ? `Parsed: ${agentActionData.query} · Target Cap: ₹${agentActionData.parsedBudget?.toLocaleString('en-IN')}` : "Synthesizing natural language intent & acoustics..."
-    },
-    {
-      title: "2. Search Relevant Products",
-      subtext: agentActionData ? `Queried ${agentActionData.matchedProducts.length} verified listings across artisan & flagship catalog` : "Querying verified catalog..."
-    },
-    {
-      title: "3. Compare Available Options",
-      subtext: agentActionData ? `Compared thermal acoustics, return escrow, and price efficiency` : "Evaluating comparative specs..."
-    },
-    {
-      title: "4. Validate Budget & Approval Rules",
-      subtext: `Evaluated against ${userName}'s ₹${monthlyCap.toLocaleString('en-IN')} cap & ₹${approvalThreshold.toLocaleString('en-IN')} auto-threshold`
-    },
-    {
-      title: "5. Present Governed Results & Actions",
-      subtext: agentActionData ? `Emitted governance decision: ${agentActionData.decision}` : "Preparing progressive card reveal..."
-    }
+  // Cycling status lines shown in the thinking indicator (Copilot × ChatGPT style)
+  const AGENT_STATUS_LINES = [
+    'Understanding your request…',
+    'Searching verified catalogs…',
+    'Comparing acoustics & specs…',
+    'Checking your spending rules…',
+    'Preparing governed results…'
   ];
 
   return (
@@ -760,7 +852,7 @@ export default function Screen1_Home({
 
           {/* Copilot-Style Central Message Input Pill */}
           <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '660px', marginBottom: '22px' }}>
-            <div style={{
+            <div className="aria-composer" style={{
               display: 'flex',
               alignItems: 'center',
               backgroundColor: '#FFFFFF',
@@ -817,7 +909,7 @@ export default function Screen1_Home({
                   display: 'flex',
                   alignItems: 'center'
                 }}
-                title="Voice search with Whisper / Web Speech"
+                title="Voice search"
               >
                 <Mic size={20} />
               </button>
@@ -898,7 +990,7 @@ export default function Screen1_Home({
 
       {/* ─── Integrated Aria Activity & Conversation Panel ─── */}
       {chatOpen && (
-        <section 
+        <section
           ref={chatSectionRef}
           className="animate-fade-in"
           style={{
@@ -1050,6 +1142,9 @@ export default function Screen1_Home({
                   const isAuto = gov?.decision === 'AUTO_EXECUTE';
                   const isApproval = gov?.decision === 'HUMAN_APPROVAL';
                   const isBlock = gov?.decision === 'BLOCK';
+                  const isSearchOnly = gov?.decision === 'SEARCH_ONLY';
+                  const isUnconfirmed = gov?.decision === 'UNCONFIRMED';
+                  const isNeutral = isSearchOnly || isUnconfirmed;
 
                   return (
                     <div key={msg.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
@@ -1057,7 +1152,7 @@ export default function Screen1_Home({
                         width: '36px',
                         height: '36px',
                         borderRadius: '50%',
-                        backgroundColor: isBlock ? '#EF4444' : isApproval ? '#F59E0B' : 'var(--forest-green)',
+                        backgroundColor: isBlock ? '#EF4444' : isApproval ? '#F59E0B' : isNeutral ? '#64748B' : 'var(--forest-green)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1072,7 +1167,7 @@ export default function Screen1_Home({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>{msg.name}</span>
                           <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>{msg.time}</span>
-                          
+
                           {/* 3-Way Governance Badge */}
                           {gov && (
                             <span style={{
@@ -1083,15 +1178,17 @@ export default function Screen1_Home({
                               fontWeight: 700,
                               padding: '2px 8px',
                               borderRadius: 'var(--radius-pill)',
-                              backgroundColor: isAuto ? '#DCFCE7' : isApproval ? '#FEF3C7' : '#FEE2E2',
-                              color: isAuto ? '#166534' : isApproval ? '#B45309' : '#B91C1C',
-                              border: `1px solid ${isAuto ? '#86EFAC' : isApproval ? '#FCD34D' : '#FCA5A5'}`
+                              backgroundColor: isNeutral ? '#F1F5F9' : isAuto ? '#DCFCE7' : isApproval ? '#FEF3C7' : '#FEE2E2',
+                              color: isNeutral ? '#475569' : isAuto ? '#166534' : isApproval ? '#B45309' : '#B91C1C',
+                              border: `1px solid ${isNeutral ? '#CBD5E1' : isAuto ? '#86EFAC' : isApproval ? '#FCD34D' : '#FCA5A5'}`
                             }}>
-                              <span>{isAuto ? '🟢 DECISION: AUTO-EXECUTE' : isApproval ? '🟡 DECISION: HUMAN APPROVAL' : '🔴 DECISION: BLOCK'}</span>
+                              <span>
+                                {isSearchOnly ? 'SEARCH ONLY · NO ORDER' : isUnconfirmed ? 'GOVERNANCE NOT CONFIRMED' : isAuto ? 'GOVERNANCE RECORDED · PAYMENT PENDING' : isApproval ? 'DECISION: HUMAN APPROVAL' : 'DECISION: BLOCK'}
+                              </span>
                             </span>
                           )}
 
-                          {gov?.reasonCode && (
+                          {gov?.reasonCode && gov?.isExplicitBuy && !isUnconfirmed && (
                             <span style={{ fontSize: '10.5px', color: 'var(--ink-muted)', fontFamily: 'ui-monospace, monospace' }}>
                               [{gov.reasonCode}]
                             </span>
@@ -1118,18 +1215,18 @@ export default function Screen1_Home({
                               marginTop: '12px',
                               padding: '10px 14px',
                               borderRadius: '10px',
-                              backgroundColor: isAuto ? '#F0FDF4' : isApproval ? '#FFFBEB' : '#FEF2F2',
-                              border: `1px solid ${isAuto ? '#BBF7D0' : isApproval ? '#FDE68A' : '#FECACA'}`,
+                              backgroundColor: isNeutral ? '#F8FAFC' : isAuto ? '#F0FDF4' : isApproval ? '#FFFBEB' : '#FEF2F2',
+                              border: `1px solid ${isNeutral ? '#E2E8F0' : isAuto ? '#BBF7D0' : isApproval ? '#FDE68A' : '#FECACA'}`,
                               fontSize: '12.5px',
                               lineHeight: 1.5,
-                              color: isAuto ? '#166534' : isApproval ? '#92400E' : '#991B1B'
+                              color: isNeutral ? '#475569' : isAuto ? '#166534' : isApproval ? '#92400E' : '#991B1B'
                             }}>
-                              <strong>Governance Audit Explanation:</strong> {gov.reasonText}
+                              <strong>{isNeutral ? 'Request status:' : 'Governance explanation:'}</strong> {gov.reasonText}
                             </div>
                           )}
 
                           {/* Action Buttons for Human Approval */}
-                          {isApproval && gov.orderId && (
+                          {isApproval && gov.isExplicitBuy && gov.orderId && (
                             <div style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -1143,7 +1240,7 @@ export default function Screen1_Home({
                                 onClick={() => handleDirectApprove(gov.orderId)}
                                 style={{ backgroundColor: '#166534', borderRadius: 'var(--radius-pill)' }}
                               >
-                                ✓ Authorize Order (Execute Now)
+                                ✓ Approve this order
                               </Button>
                               <Button
                                 size="sm"
@@ -1151,7 +1248,7 @@ export default function Screen1_Home({
                                 onClick={() => handleDirectReject(gov.orderId)}
                                 style={{ borderRadius: 'var(--radius-pill)' }}
                               >
-                                ✕ Release Hold (Cancel)
+                                ✕ Reject this order
                               </Button>
                               <button
                                 onClick={() => onNavigateToScreen('needs_ok')}
@@ -1174,7 +1271,7 @@ export default function Screen1_Home({
                           )}
 
                           {/* Direct Actions for Blocked Policy Violation */}
-                          {isBlock && (
+                          {isBlock && gov.isExplicitBuy && (
                             <div style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -1230,11 +1327,12 @@ export default function Screen1_Home({
                         id={r.id}
                         item={r.item}
                         price={r.price}
-                        status="placed"
-                        title="Order Trust Ledger"
-                        subtitle="VERIFIED INTENT VOUCHER"
+                        status={r.status}
+                        title="Governance Order Record"
+                        subtitle="GOVERNANCE ORDER RECORD"
                         authorizedAt={r.authorizedAt}
                         paymentChannel={r.paymentChannel}
+                        destination={r.destination || 'Not provided'}
                         sha256={r.sha256}
                         onTrackOrder={() => {
                           onNavigateToScreen('orders');
@@ -1249,147 +1347,50 @@ export default function Screen1_Home({
                 return null;
               })}
 
-              {/* ─── 5-STAGE PROGRESSIVE AGENT ACTIVITY STEPPER ─── */}
+              {/* ─── ARIA THINKING INDICATOR (Copilot × ChatGPT style) ─── */}
               {agentExecuting && (
                 <div className="agent-step-appear" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  padding: '14px 18px',
+                  margin: '10px 0 16px 48px',
                   backgroundColor: '#FFFFFF',
-                  borderRadius: '20px',
-                  border: '1.5px solid #86EFAC',
-                  boxShadow: '0 8px 32px rgba(16, 185, 129, 0.14)',
-                  padding: '24px',
-                  margin: '10px 0 16px 0',
-                  position: 'relative',
-                  overflow: 'hidden'
+                  borderRadius: '100px',
+                  border: '1px solid var(--border-cream)',
+                  boxShadow: 'var(--shadow-warm-md)',
+                  width: 'fit-content',
+                  maxWidth: '100%'
                 }}>
-                  {/* Top glowing scan line */}
-                  <div className="agent-scan-shimmer" style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: '4px'
-                  }} />
-
-                  {/* Microsoft Copilot-Style Fluid Ribbon Animation (matching Screenshot 2) */}
-                  <div style={{ padding: '8px 0 16px 0', borderBottom: '1px solid #ECFDF5', marginBottom: '16px' }}>
-                    <AriaCopilotLogo size={52} statusText="Aria is checking online catalogs & running pre-execution governance..." />
-                  </div>
-
-                  {/* Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div className="agent-live-glow" style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--forest-green)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#FFFFFF'
-                      }}>
-                        <Cpu size={16} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--forest-green)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>PRE-EXECUTION GOVERNANCE ENGINE</span>
-                          <span style={{ fontSize: '10px', backgroundColor: '#DCFCE7', color: '#15803D', padding: '1px 7px', borderRadius: '4px', fontWeight: 800 }}>AUDITING</span>
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: 'var(--ink-muted)' }}>
-                          Step-by-step verification before executing commerce tools
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontSize: '11.5px',
-                      color: 'var(--forest-green)',
-                      fontWeight: 600,
-                      backgroundColor: 'var(--forest-green-light)',
-                      padding: '4px 12px',
-                      borderRadius: 'var(--radius-pill)',
-                      border: '1px solid var(--forest-green-border)'
-                    }}>
-                      <span className="pulse-badge" style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-                      <span>Stage {agentStep + 1} of 5</span>
-                    </div>
-                  </div>
-
-                  {/* 5-Step dynamic checklist */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
-                    {STEP_DETAILS.map((step, idx) => {
-                      const isDone = agentStep > idx;
-                      const isCurrent = agentStep === idx;
-                      return (
-                        <div key={idx} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          fontSize: '13px',
-                          color: isDone ? 'var(--forest-green)' : isCurrent ? 'var(--ink)' : 'var(--ink-muted)',
-                          fontWeight: isCurrent ? 600 : 500,
-                          transition: 'all 0.25s ease'
-                        }}>
-                          <div style={{
-                            width: '22px',
-                            height: '22px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: isDone ? '#DCFCE7' : isCurrent ? 'var(--forest-green-light)' : 'var(--bg-cream-subtle)',
-                            color: isDone ? '#166534' : isCurrent ? 'var(--forest-green)' : 'var(--ink-muted)',
-                            border: isDone ? '1px solid #86EFAC' : isCurrent ? '1.5px solid var(--forest-green)' : '1px solid var(--border-cream)',
-                            flexShrink: 0,
-                            fontSize: '11.5px',
-                            fontWeight: 700
-                          }}>
-                            {isDone ? '✓' : isCurrent ? '⚡' : idx + 1}
-                          </div>
-
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span>{step.title}</span>
-                              <span style={{
-                                fontSize: '10px',
-                                textTransform: 'uppercase',
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                                backgroundColor: isDone ? '#EAF4EE' : isCurrent ? '#FEF3C7' : '#F4F2ED',
-                                color: isDone ? '#166534' : isCurrent ? '#B45309' : '#8E8D85',
-                                fontWeight: 700
-                              }}>
-                                {isDone ? 'Pass' : isCurrent ? 'Executing...' : 'Queued'}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '11.5px', color: isCurrent ? 'var(--forest-green)' : 'var(--ink-secondary)', marginTop: '1px' }}>
-                              {step.subtext}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Animated Progress Meter */}
-                  <div style={{
-                    width: '100%',
-                    height: '6px',
-                    backgroundColor: 'var(--bg-cream-subtle)',
-                    borderRadius: '9999px',
-                    overflow: 'hidden'
+                  {/* Animated gradient orb */}
+                  <div className="aria-thinking-orb" style={{
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '50%',
+                    flexShrink: 0,
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${Math.min(100, (agentStep + 1) * 20)}%`,
-                      backgroundColor: 'var(--forest-green)',
-                      backgroundImage: 'linear-gradient(90deg, #1F4D3A 0%, #10B981 50%, #34D399 100%)',
-                      borderRadius: '9999px',
-                      transition: 'width 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
-                    }} />
+                    <Sparkles size={15} color="#FFFFFF" strokeWidth={2.4} />
+                  </div>
+
+                  {/* Status text with shimmer + bouncing dots */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <span className="aria-shimmer-text" style={{
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      color: 'var(--ink)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {AGENT_STATUS_LINES[Math.min(agentStep, AGENT_STATUS_LINES.length - 1)]}
+                    </span>
+                    <span className="aria-thinking-dots" style={{ display: 'inline-flex', gap: '3px', flexShrink: 0 }}>
+                      <span /><span /><span />
+                    </span>
                   </div>
                 </div>
               )}
@@ -1407,10 +1408,10 @@ export default function Screen1_Home({
                   }}>
                     <div>
                       <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: 'var(--forest-green)' }}>
-                        VERIFIED RESULTS MATCHING YOUR PREFERENCES
+                        SUGGESTIONS · NOT ORDERS
                       </span>
                       <div style={{ fontSize: '13px', color: 'var(--ink-secondary)' }}>
-                        Distinguishing recommendations from purchase authorization. Zero money moves until you authorize.
+                        Ask to order a specific option to run its governance check. Seller, stock, payment, and delivery details are not verified here.
                       </div>
                     </div>
 
@@ -1451,7 +1452,7 @@ export default function Screen1_Home({
                       boxShadow: 'var(--shadow-warm-md)'
                     }}>
                       <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--forest-green)', marginBottom: '10px' }}>
-                        ⚖️ Side-by-Side Acoustic & Governance Comparison
+                        ⚖️ Side-by-Side Product Comparison
                       </div>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
                         <thead>
@@ -1482,10 +1483,10 @@ export default function Screen1_Home({
                             ))}
                           </tr>
                           <tr style={{ borderBottom: '1px solid var(--border-cream-subtle)' }}>
-                            <td style={{ padding: '8px 10px', color: 'var(--ink-muted)', fontWeight: 600 }}>Verified Partner</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--ink-muted)', fontWeight: 600 }}>Merchant</td>
                             {agentActionData.matchedProducts.map((p) => (
-                              <td key={p.id} style={{ padding: '8px 10px', color: 'var(--forest-green)', fontWeight: 600 }}>
-                                ✓ {p.partner}
+                              <td key={p.id} style={{ padding: '8px 10px', color: 'var(--ink-secondary)', fontWeight: 600 }}>
+                                {p.partner || 'Not provided'}
                               </td>
                             ))}
                           </tr>
@@ -1501,10 +1502,10 @@ export default function Screen1_Home({
                                     fontWeight: 600,
                                     color: isOverCap ? '#B91C1C' : isOverThresh ? '#B45309' : '#166534'
                                   }}>
-                                    {isOverCap 
-                                      ? `⚠️ Cap Breach (+₹${(p.price - monthlyCap).toLocaleString('en-IN')})` 
-                                      : isOverThresh 
-                                        ? '⚖️ Value Delta Hold' 
+                                    {isOverCap
+                                      ? `⚠️ Cap Breach (+₹${(p.price - monthlyCap).toLocaleString('en-IN')})`
+                                      : isOverThresh
+                                        ? '⚖️ Value Delta Hold'
                                         : '✓ Aligned (0 Conflict)'}
                                   </span>
                                 </td>
@@ -1512,7 +1513,7 @@ export default function Screen1_Home({
                             })}
                           </tr>
                           <tr>
-                            <td style={{ padding: '8px 10px', color: 'var(--ink-muted)', fontWeight: 600 }}>Governance Status</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--ink-muted)', fontWeight: 600 }}>Rule estimate</td>
                             {agentActionData.matchedProducts.map((p) => {
                               const isOverCap = p.price > monthlyCap;
                               const isOverThresh = p.price > approvalThreshold;
@@ -1526,7 +1527,7 @@ export default function Screen1_Home({
                                     backgroundColor: isOverCap ? '#FEE2E2' : isOverThresh ? '#FEF3C7' : '#DCFCE7',
                                     color: isOverCap ? '#B91C1C' : isOverThresh ? '#B45309' : '#166534'
                                   }}>
-                                    {isOverCap ? 'Blocked (> Cap)' : isOverThresh ? 'Needs Approval' : 'Auto-Execute'}
+                                    {isOverCap ? 'Over monthly cap' : isOverThresh ? 'Approval may be required' : 'Within local thresholds'}
                                   </span>
                                 </td>
                               );
@@ -1542,6 +1543,14 @@ export default function Screen1_Home({
                     {agentActionData.matchedProducts.map((prod, prodIdx) => {
                       const isOverCap = prod.price > monthlyCap;
                       const isOverThresh = prod.price > approvalThreshold;
+                      const isGovernedProduct = agentActionData.backendConfirmed
+                        && agentActionData.isExplicitBuy
+                        && prod.id === agentActionData.governedProductId;
+                      const governedStatusLabel = agentActionData.decision === 'BLOCK'
+                        ? 'Blocked by governance; no order recorded.'
+                        : agentActionData.decision === 'HUMAN_APPROVAL'
+                          ? 'Approval required; use the controls above.'
+                          : 'Governance recorded. Payment and fulfillment are not connected.';
 
                       return (
                         <div
@@ -1582,7 +1591,9 @@ export default function Screen1_Home({
                                 fontWeight: 700,
                                 border: '1px solid var(--border-cream)'
                               }}>
-                                {isOverCap ? 'BLOCKED · OVER CAP' : isOverThresh ? 'NEEDS HUMAN OK' : 'PRE-AUDITED'}
+                                {isGovernedProduct
+                                  ? agentActionData.decision === 'BLOCK' ? 'GOVERNANCE BLOCKED' : agentActionData.decision === 'HUMAN_APPROVAL' ? 'APPROVAL REQUIRED' : 'GOVERNANCE RECORDED'
+                                  : 'SUGGESTION · VERIFY DETAILS'}
                               </span>
 
                               <span style={{
@@ -1604,7 +1615,7 @@ export default function Screen1_Home({
                             <div>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', gap: '6px' }}>
                                 <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: 'var(--forest-green)' }}>
-                                  ✓ {prod.partner}
+                                  {prod.partner || 'Merchant not provided'}
                                 </span>
                                 <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>{prod.batch}</span>
                               </div>
@@ -1628,11 +1639,14 @@ export default function Screen1_Home({
                                 marginBottom: '12px',
                                 lineHeight: 1.4
                               }}>
-                                <strong style={{ color: 'var(--forest-green)' }}>Why Aria picked this:</strong> {prod.rationale}
+                                <strong style={{ color: 'var(--forest-green)' }}>Details:</strong>{' '}
+                                {isGovernedProduct
+                                  ? agentActionData.reasonText
+                                  : 'Demo catalog or live-search suggestion. Seller credentials, stock, and listing details have not been independently verified.'}
                               </div>
 
                               {/* Buyer-Merchant Conflict & Governance Callout */}
-                              {isOverCap && (
+                              {!isGovernedProduct && isOverCap && (
                                 <div style={{
                                   backgroundColor: '#FEF2F2',
                                   border: '1px solid #FECACA',
@@ -1643,10 +1657,10 @@ export default function Screen1_Home({
                                   marginBottom: '12px',
                                   lineHeight: 1.4
                                 }}>
-                                  <strong>⚠️ Buyer–Merchant Conflict:</strong> Price breaches monthly ceiling by ₹{(prod.price - monthlyCap).toLocaleString('en-IN')}. Pre-execution block enforced.
+                                  <strong>Rule estimate:</strong> Listed price is ₹{(prod.price - monthlyCap).toLocaleString('en-IN')} above your monthly cap. No order was placed.
                                 </div>
                               )}
-                              {isOverThresh && (
+                              {!isGovernedProduct && isOverThresh && (
                                 <div style={{
                                   backgroundColor: '#FFFBEB',
                                   border: '1px solid #FDE68A',
@@ -1657,7 +1671,7 @@ export default function Screen1_Home({
                                   marginBottom: '12px',
                                   lineHeight: 1.4
                                 }}>
-                                  <strong>⚖️ Governance Notice:</strong> Price exceeds ₹{approvalThreshold.toLocaleString('en-IN')} threshold. Suspended on a 15-minute Tranquility hold for your explicit approval.
+                                  <strong>Rule estimate:</strong> Price is above your ₹{approvalThreshold.toLocaleString('en-IN')} automatic threshold. Governance approval is only checked if you ask to order.
                                 </div>
                               )}
                             </div>
@@ -1673,7 +1687,7 @@ export default function Screen1_Home({
                                 borderTop: '1px solid var(--border-cream-subtle)'
                               }}>
                                 <div>
-                                  <div style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>Pre-tax & Courier</div>
+                                  <div style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--ink-muted)' }}>Listed price</div>
                                   <div style={{ fontSize: '18px', fontWeight: 700, color: isOverCap ? '#B91C1C' : 'var(--ink)' }}>
                                     ₹{prod.price.toLocaleString('en-IN')}
                                   </div>
@@ -1681,12 +1695,16 @@ export default function Screen1_Home({
 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--ink-secondary)' }}>
                                   <Truck size={14} color="var(--forest-green)" />
-                                  <span>{prod.delivery}</span>
+                                  <span>Delivery details unverified</span>
                                 </div>
                               </div>
 
                               {/* Distinguish recommendation from purchase authorization */}
-                              {isOverCap ? (
+                              {isGovernedProduct ? (
+                                <div role="status" style={{ fontSize: '12.5px', color: 'var(--ink-secondary)' }}>
+                                  {governedStatusLabel}
+                                </div>
+                              ) : isOverCap ? (
                                 <button
                                   onClick={() => onNavigateToScreen('rules')}
                                   style={{
@@ -1725,6 +1743,40 @@ export default function Screen1_Home({
                                 </Button>
                               )}
                             </div>
+
+                            {/* Nearby multi-vendor offers (hyperlocal allocation) */}
+                            {!isGovernedProduct && (
+                              <div style={{ padding: '0 4px' }}>
+                                <VendorOffersPanel
+                                  productId={prod.id}
+                                  productName={prod.name}
+                                  buyerLocality={currentLocation?.locality || currentLocation?.city || ''}
+                                  currentUser={currentUser}
+                                  onShowToast={onShowToast}
+                                  onAllocated={(res) => {
+                                    onAddOrder?.({
+                                      id: res.order_id,
+                                      user_id: currentUser?.id,
+                                      item: prod.name,
+                                      subtitle: `Nearby delivery · ${res.vendor.locality}`,
+                                      price: res.vendor.price_paise / 100,
+                                      status: 'allocated',
+                                      timestamp: new Date().toLocaleString(),
+                                      merchant: res.vendor.store_name,
+                                      vendor_id: res.vendor.vendor_id,
+                                      vendor_name: res.vendor.store_name,
+                                      vendor_locality: res.vendor.locality,
+                                      destination: currentLocation?.locality || currentLocation?.city || ''
+                                    });
+                                    setAgentActionData(prev => prev ? {
+                                      ...prev,
+                                      allocatedVendor: res.vendor,
+                                      orderId: res.order_id
+                                    } : prev);
+                                  }}
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -1774,7 +1826,7 @@ export default function Screen1_Home({
               backgroundColor: '#FFFFFF',
               borderTop: '1px solid var(--border-cream)'
             }}>
-              <div style={{
+              <div className="aria-composer" style={{
                 display: 'flex',
                 alignItems: 'center',
                 backgroundColor: '#F8F9FA',
@@ -1817,7 +1869,7 @@ export default function Screen1_Home({
                     cursor: 'pointer',
                     display: 'flex'
                   }}
-                  title="Voice search with Whisper / Web Speech"
+                  title="Voice search"
                 >
                   <Mic size={18} />
                 </button>
@@ -1875,15 +1927,17 @@ export default function Screen1_Home({
         </section>
       )}
 
-      {/* ─── Free Whisper / Web Speech Real-Time Voice Search Modal ─── */}
-      <VoiceModal
-        isOpen={voiceModalOpen}
-        onClose={() => setVoiceModalOpen(false)}
-        onTranscriptComplete={(spokenQuery) => {
-          setPromptInput(spokenQuery);
-          runAgentWorkflow(spokenQuery);
-        }}
-      />
+      {/* ─── Browser speech recognition modal ─── */}
+      {voiceModalOpen && (
+        <VoiceModal
+          isOpen={voiceModalOpen}
+          onClose={() => setVoiceModalOpen(false)}
+          onTranscriptComplete={(spokenQuery) => {
+            setPromptInput(spokenQuery);
+            runAgentWorkflow(spokenQuery);
+          }}
+        />
+      )}
     </div>
   );
 }

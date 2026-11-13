@@ -369,7 +369,7 @@ export default function BuyerLoginPage({ onBack, onSignIn, onGuestContinue }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
             <CheckCircle2 size={13} color="#22C55E" />
             <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>
-              Secure · No password required · Powered by Google OAuth 2.0
+              Demo account available · Google OAuth setup required
             </span>
           </div>
         </div>

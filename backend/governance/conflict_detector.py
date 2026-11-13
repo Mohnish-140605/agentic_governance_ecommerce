@@ -4,12 +4,17 @@ Identifies conflicts between customer budget constraints and merchant pricing/su
 Aligned with Section 4.E and Objective 7 of Project_Docs.docx.
 """
 
-from typing import Optional
-from ..models.schemas import ActionProposal, ConflictEvaluation
+from ..models.schemas import ActionProposal, MERCHANT_ACTIONS, ConflictEvaluation
 
 class ConflictDetector:
     @staticmethod
     def detect_conflicts(proposal: ActionProposal, monthly_cap: float) -> ConflictEvaluation:
+        if proposal.action_type in MERCHANT_ACTIONS:
+            return ConflictEvaluation(
+                has_conflict=False,
+                explanation="Buyer spending conflicts do not apply to this merchant-side action."
+            )
+
         price = proposal.requested_price
         user_budget = proposal.user_budget
         surge_variance = proposal.metadata.get("surge_variance_pct", 0.0)

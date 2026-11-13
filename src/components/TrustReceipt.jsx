@@ -20,11 +20,11 @@ export default function TrustReceipt({
   priceDelta = null,
   status = 'placed', // 'placed' | 'needs_ok' | 'failed'
   title = 'Order Trust Ledger',
-  subtitle = 'VERIFIED INTENT VOUCHER',
-  authorizedAt = 'Today, 10:43 AM',
-  paymentChannel = 'HDFC Priority ••4902',
-  destination = 'Registered Delivery Address',
-  sha256 = '7f920eb18a24c559d81a942001e',
+  subtitle = 'GOVERNANCE ORDER RECORD',
+  authorizedAt = 'Not recorded',
+  paymentChannel = 'Not connected in this demo',
+  destination = 'Not provided',
+  sha256 = null,
   stamps = null,
   onTrackOrder = null,
   onApprove = null,
@@ -37,37 +37,38 @@ export default function TrustReceipt({
 }) {
   const [copiedHash, setCopiedHash] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const hasSha256 = typeof sha256 === 'string' && sha256.length > 0;
 
-  // Default stamps if not provided
   const receiptStamps = stamps || {
     budget: {
-      title: status === 'failed' ? 'Exceeds Monthly Cap' : 'Within Your Budget',
-      desc: status === 'failed' 
-        ? '₹75,000 exceeds ₹50,000 monthly allowance' 
-        : `₹${price.toLocaleString('en-IN')} < ₹1,00,000 hardware cap`,
-      status: status === 'failed' ? 'failed' : 'placed'
+      title: status === 'failed' ? 'Request not placed' : 'Governance recorded',
+      desc: status === 'failed'
+        ? 'No order was recorded.'
+        : 'Payment and fulfillment are not connected in this demo.',
+      status: status === 'failed' ? 'failed' : 'review'
     },
     approval: {
       title: status === 'needs_ok' 
-        ? 'Needs Confirmation' 
+        ? 'Buyer approval pending'
         : status === 'failed' 
-          ? 'Approval Paused' 
-          : 'Under Approval Limit',
+          ? 'No order recorded'
+          : 'Fulfillment pending',
       desc: status === 'needs_ok'
-        ? `Exceeds threshold: ₹${price.toLocaleString('en-IN')} > ₹1,00,000`
+        ? 'The buyer decision is required before proceeding.'
         : status === 'failed'
-          ? 'Pending deliberate user approval'
-          : 'Pre-authorized single transaction limit ₹1,00,000',
-      status: status === 'needs_ok' ? 'review' : status === 'failed' ? 'review' : 'placed'
+          ? 'The request was not placed.'
+          : 'No seller fulfillment has been started.',
+      status: 'review'
     },
     merchant: {
-      title: 'Seller Verified',
-      desc: 'Authentic modular hardware partner',
-      status: 'placed'
+      title: 'Seller verification',
+      desc: 'Not verified by this demo.',
+      status: 'review'
     }
   };
 
   const handleCopyHash = () => {
+    if (!hasSha256) return;
     navigator.clipboard?.writeText(sha256);
     setCopiedHash(true);
     if (onShowToast) {
@@ -79,7 +80,7 @@ export default function TrustReceipt({
   const handleDownloadPDF = () => {
     setDownloading(true);
     if (onShowToast) {
-      onShowToast(`Generating cryptographic Trust Receipt PDF for #${id}...`);
+      onShowToast(`Preparing the text Trust Receipt for #${id}...`);
     }
     setTimeout(() => {
       setDownloading(false);
@@ -91,9 +92,9 @@ export default function TrustReceipt({
         `Item: ${item}\n` +
         `Total: INR ${price}\n` +
         `Status: ${status.toUpperCase()}\n` +
-        `Cryptographic Hash: ${sha256}\n` +
+        `Cryptographic Hash: ${hasSha256 ? sha256 : 'Not recorded'}\n` +
         `Authorized At: ${authorizedAt}\n` +
-        `Zero-Hallucination Safe Enclave Guarantee`
+        `Payment and fulfillment: ${paymentChannel}`
       ], { type: 'text/plain' });
       element.href = URL.createObjectURL(file);
       element.download = `Cairn-Trust-Receipt-${id}.txt`;
@@ -101,7 +102,7 @@ export default function TrustReceipt({
       element.click();
       document.body.removeChild(element);
       if (onShowToast) {
-        onShowToast(`Trust Receipt #${id} downloaded successfully.`);
+        onShowToast(`Trust Receipt record #${id} downloaded.`);
       }
     }, 800);
   };
@@ -117,26 +118,33 @@ export default function TrustReceipt({
               Trust Ledger #{id}
             </span>
           </div>
-          {status === 'placed' && <span className="badge-placed">● Settled</span>}
+          {status === 'placed' && <span className="badge-placed">● Placed</span>}
           {status === 'needs_ok' && <span className="badge-review">● Needs OK</span>}
           {status === 'failed' && <span className="badge-failed">● Paused</span>}
+          {['allocated', 'acknowledged', 'accepted', 'preparing', 'dispatched', 'delivered'].includes(status) && (
+            <span className="badge-placed">● {status.replace(/_/g, ' ')}</span>
+          )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '10px' }}>
           {/* Stamp 1 */}
           <div style={{
-            background: receiptStamps.budget.status === 'failed' ? '#FFF5F5' : '#F4FAF6',
-            border: `1px solid ${receiptStamps.budget.status === 'failed' ? '#FECACA' : '#C8E8D5'}`,
+            background: receiptStamps.budget.status === 'failed' ? '#FFF5F5' : receiptStamps.budget.status === 'review' ? '#FFFBEB' : '#F4FAF6',
+            border: `1px solid ${receiptStamps.budget.status === 'failed' ? '#FECACA' : receiptStamps.budget.status === 'review' ? '#FDE68A' : '#C8E8D5'}`,
             borderRadius: '10px',
             padding: '8px 6px',
             textAlign: 'center'
           }}>
             <div style={{
               width: '24px', height: '24px', borderRadius: '50%',
-              background: receiptStamps.budget.status === 'failed' ? '#FEE2E2' : '#E2F5E9',
+              background: receiptStamps.budget.status === 'failed' ? '#FEE2E2' : receiptStamps.budget.status === 'review' ? '#FEF3C7' : '#E2F5E9',
               margin: '0 auto 4px', display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
-              {receiptStamps.budget.status === 'failed' ? <X size={12} color="#DC2626" /> : <Check size={12} color="#10B981" />}
+              {receiptStamps.budget.status === 'failed'
+                ? <X size={12} color="#DC2626" />
+                : receiptStamps.budget.status === 'review'
+                  ? <Hand size={12} color="#D97706" />
+                  : <Check size={12} color="#10B981" />}
             </div>
             <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink)' }}>Budget</div>
           </div>
@@ -161,18 +169,22 @@ export default function TrustReceipt({
 
           {/* Stamp 3 */}
           <div style={{
-            background: '#F4FAF6',
-            border: '1px solid #C8E8D5',
+            background: receiptStamps.merchant.status === 'failed' ? '#FFF5F5' : receiptStamps.merchant.status === 'review' ? '#FFFBEB' : '#F4FAF6',
+            border: `1px solid ${receiptStamps.merchant.status === 'failed' ? '#FECACA' : receiptStamps.merchant.status === 'review' ? '#FDE68A' : '#C8E8D5'}`,
             borderRadius: '10px',
             padding: '8px 6px',
             textAlign: 'center'
           }}>
             <div style={{
               width: '24px', height: '24px', borderRadius: '50%',
-              background: '#E2F5E9',
+              background: receiptStamps.merchant.status === 'failed' ? '#FEE2E2' : receiptStamps.merchant.status === 'review' ? '#FEF3C7' : '#E2F5E9',
               margin: '0 auto 4px', display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
-              <Award size={12} color="#10B981" />
+              {receiptStamps.merchant.status === 'failed'
+                ? <X size={12} color="#DC2626" />
+                : receiptStamps.merchant.status === 'review'
+                  ? <Hand size={12} color="#D97706" />
+                  : <Award size={12} color="#10B981" />}
             </div>
             <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink)' }}>Seller</div>
           </div>
@@ -214,7 +226,7 @@ export default function TrustReceipt({
           {status === 'placed' && (
             <span className="badge-placed">
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-              SETTLED & CONFIRMED
+              ORDER RECORDED
             </span>
           )}
           {status === 'needs_ok' && (
@@ -243,7 +255,7 @@ export default function TrustReceipt({
 
         <div className="receipt-meta-box">
           <div className="receipt-meta-label">
-            {status === 'failed' ? 'Requested Total' : 'Settlement Total'}
+            {status === 'failed' ? 'Requested Total' : 'Order Total'}
           </div>
           <div className="receipt-meta-value" style={{ color: status === 'failed' ? 'var(--coral-dark)' : 'var(--ink)' }}>
             ₹{price.toLocaleString('en-IN')}
@@ -263,7 +275,7 @@ export default function TrustReceipt({
         </div>
 
         <div className="receipt-meta-box">
-          <div className="receipt-meta-label">Payment Channel</div>
+          <div className="receipt-meta-label">Payment</div>
           <div className="receipt-meta-value" style={{ fontSize: '13px' }}>
             {paymentChannel}
           </div>
@@ -286,23 +298,23 @@ export default function TrustReceipt({
       <div className="trust-receipt-stamps-wrap">
         <div className="stamps-header">
           <div className="stamps-title">
-            DETERMINISTIC SAFEGUARDS — Triple-Verification Integrity
+            RECORDED GOVERNANCE STATUS
           </div>
           <div className="stamps-security-badge">
             <ShieldCheck size={14} />
-            <span>Zero-Hallucination Safe</span>
+            <span>Payment and fulfillment pending</span>
           </div>
         </div>
 
         <div className="stamps-grid">
           {/* Stamp 1: Budget */}
-          <div className={`trust-stamp-card ${receiptStamps.budget.status === 'failed' ? 'stamp-card-coral' : 'stamp-card-green'}`}>
+          <div className={`trust-stamp-card ${receiptStamps.budget.status === 'failed' ? 'stamp-card-coral' : receiptStamps.budget.status === 'review' ? 'stamp-card-yellow' : 'stamp-card-green'}`}>
             <div className="stamp-emblem">
-              {receiptStamps.budget.status === 'failed' ? (
-                <X size={22} strokeWidth={2.5} />
-              ) : (
-                <Check size={22} strokeWidth={2.5} />
-              )}
+              {receiptStamps.budget.status === 'failed'
+                ? <X size={22} strokeWidth={2.5} />
+                : receiptStamps.budget.status === 'review'
+                  ? <Hand size={22} strokeWidth={2.5} />
+                  : <Check size={22} strokeWidth={2.5} />}
             </div>
             <div className="stamp-name">
               {receiptStamps.budget.title}
@@ -338,13 +350,13 @@ export default function TrustReceipt({
           </div>
 
           {/* Stamp 3: Seller Verification */}
-          <div className={`trust-stamp-card ${receiptStamps.merchant.status === 'failed' ? 'stamp-card-coral' : 'stamp-card-green'}`}>
+          <div className={`trust-stamp-card ${receiptStamps.merchant.status === 'failed' ? 'stamp-card-coral' : receiptStamps.merchant.status === 'review' ? 'stamp-card-yellow' : 'stamp-card-green'}`}>
             <div className="stamp-emblem">
-              {receiptStamps.merchant.status === 'failed' ? (
-                <X size={22} strokeWidth={2.5} />
-              ) : (
-                <Award size={22} strokeWidth={2.5} />
-              )}
+              {receiptStamps.merchant.status === 'failed'
+                ? <X size={22} strokeWidth={2.5} />
+                : receiptStamps.merchant.status === 'review'
+                  ? <Hand size={22} strokeWidth={2.5} />
+                  : <Award size={22} strokeWidth={2.5} />}
             </div>
             <div className="stamp-name">
               {receiptStamps.merchant.title}
@@ -368,14 +380,14 @@ export default function TrustReceipt({
                     <ArrowRight size={15} />
                   </button>
                 )}
-                <button 
+                <button
                   className="pill-button-ghost" 
                   onClick={handleDownloadPDF}
                   disabled={downloading}
                   style={{ fontSize: '13px' }}
                 >
                   <Download size={14} />
-                  <span>{downloading ? 'Preparing...' : 'Download Trust Receipt PDF'}</span>
+                  <span>{downloading ? 'Preparing...' : 'Download Trust Receipt (.txt)'}</span>
                 </button>
               </>
             )}
@@ -416,13 +428,13 @@ export default function TrustReceipt({
           {/* Cryptographic hash badge */}
           <div 
             className="receipt-hash-code"
-            onClick={handleCopyHash}
-            title="Click to copy full SHA-256 ledger proof"
-            style={{ cursor: 'pointer' }}
+            onClick={hasSha256 ? handleCopyHash : undefined}
+            title={hasSha256 ? 'Click to copy full SHA-256 audit hash' : 'No audit hash was recorded'}
+            style={{ cursor: hasSha256 ? 'pointer' : 'default' }}
           >
             <span style={{ fontWeight: 600, color: 'var(--ink)' }}>SHA-256</span>
-            <span>{sha256.slice(0, 7)}...{sha256.slice(-4)}</span>
-            {copiedHash ? <CheckCheck size={12} color="#10B981" /> : <Copy size={12} />}
+            <span>{hasSha256 ? `${sha256.slice(0, 7)}...${sha256.slice(-4)}` : 'Not recorded'}</span>
+            {hasSha256 && (copiedHash ? <CheckCheck size={12} color="#10B981" /> : <Copy size={12} />)}
           </div>
         </div>
       )}

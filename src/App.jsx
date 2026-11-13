@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Header from './components/Header';
+import NotificationsCentre from './components/NotificationsCentre';
 import Footer from './components/Footer';
 import AskAriaFab from './components/AskAriaFab';
 import CommandPalette from './components/CommandPalette';
@@ -25,11 +26,10 @@ import Screen8_StoreHealth from './screens/Screen8_StoreHealth';
 import Screen9_HowAriaWorks from './screens/Screen9_Tutorial';
 import Screen10_Settings from './screens/Screen10_Settings';
 
-import { INITIAL_RULES, INITIAL_ORDERS, SELLER_LISTINGS } from './data/mockData';
+import { INITIAL_RULES } from './data/mockData';
 import { DEFAULT_USER, POPULAR_LOCATIONS } from './data/navigation';
 import {
   fetchOrders,
-  fetchListings,
   updatePolicyRules,
   sendHumanApproval
 } from './services/api';
@@ -63,6 +63,33 @@ function saveAppState(state) {
   localStorage.setItem(SESSION_KEYS.appState, state);
 }
 
+function mapBackendOrders(backendOrders) {
+  return backendOrders.map((order) => {
+    const createdAt = Number(order.created_at);
+    return {
+      id: order.id,
+      user_id: order.user_id,
+      item: order.product_name,
+      subtitle: order.specs,
+      price: order.price == null ? null : Number(order.price),
+      status: order.status,
+      timestamp: Number.isFinite(createdAt) && createdAt > 0
+        ? new Date(createdAt * 1000).toLocaleString()
+        : 'Time unavailable',
+      merchant: order.merchant,
+      vendor_id: order.vendor_id,
+      vendor_name: order.vendor_name,
+      vendor_locality: order.vendor_locality,
+      distance_km: order.distance_km,
+      carrier_name: order.carrier_name,
+      tracking_ref: order.tracking_ref,
+      destination: order.destination,
+      flagReason: order.flag_reason,
+      sha256: order.sha256
+    };
+  });
+}
+
 // ─── Determine initial app state from persisted sessions ───────────────────
 function resolveInitialState() {
   const persisted = loadAppState();
@@ -85,9 +112,18 @@ export default function App() {
   });
 
   const [rules, setRules] = useState(INITIAL_RULES);
-  const [orders, setOrders] = useState(INITIAL_ORDERS);
-  const [sellerListings, setSellerListings] = useState(SELLER_LISTINGS);
+  const [orders, setOrders] = useState([]);
+  const [listingsRefreshVersion, setListingsRefreshVersion] = useState(0);
   const [chatPrompt, setChatPrompt] = useState('');
+  const [guardrailItem, setGuardrailItem] = useState({
+    name: '',
+    price: null,
+    merchant: '',
+    monthlyCap: INITIAL_RULES.monthlyCap,
+    shopperId: '',
+    ticketRef: '',
+    reason: ''
+  });
 
   // Modals state
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -103,6 +139,11 @@ export default function App() {
     if (appState === 'merchant_app') return loadSession('merchant') || DEFAULT_USER;
     return DEFAULT_USER;
   });
+  const [merchantVendorId, setMerchantVendorId] = useState(
+    () => currentUser?.vendor_id || 'VEN-BLR-001'
+  );
+  const buyerOrdersRequestRef = useRef(0);
+  const buyerId = currentUser?.role === 'merchant' ? null : currentUser?.id;
 
   // Live Location
   const [currentLocation, setCurrentLocation] = useState(() => {
@@ -119,68 +160,39 @@ export default function App() {
     saveAppState(appState);
   }, [appState]);
 
-  // ── Synchronize Orders and Verified Listings with Backend SQLite ─────────
-  useEffect(() => {
-    async function syncDataWithBackend() {
-      try {
-        const [backendOrders, backendListings] = await Promise.all([
-          fetchOrders(),
-          fetchListings()
-        ]);
-
-        if (Array.isArray(backendOrders) && backendOrders.length > 0) {
-          setOrders((prev) => {
-            const existingIds = new Set(prev.map(o => o.id));
-            const newFromBackend = backendOrders
-              .filter(bo => !existingIds.has(bo.id))
-              .map(bo => ({
-                id: bo.id,
-                item: bo.product_name,
-                subtitle: bo.specs || 'Artisan Direct Procurement',
-                price: bo.price,
-                status: bo.status || 'placed',
-                timestamp: 'Synced from Cairn Ledger',
-                image: '/assets/dell_xps.jpg',
-                merchant: bo.merchant || 'Verified Partner',
-                paymentChannel: 'HDFC Priority ••4902',
-                destination: bo.destination || 'Jor Bagh, New Delhi',
-                flagReason: bo.flag_reason,
-                stamps: {
-                  budget: { title: 'Budget Approved', desc: 'Checked against monthly cap', status: 'placed' },
-                  approval: { title: 'Governance Verified', desc: 'Validated by deterministic rules', status: 'placed' },
-                  merchant: { title: 'Verified Seller', desc: 'Direct artisan partner', status: 'placed' }
-                },
-                sha256: bo.sha256 || '9e88...77e1'
-              }));
-            return [...newFromBackend, ...prev];
-          });
-        }
-
-        if (Array.isArray(backendListings) && backendListings.length > 0) {
-          setSellerListings((prev) => {
-            const existingIds = new Set(prev.map(l => l.id));
-            const newFromBackend = backendListings
-              .filter(bl => !existingIds.has(bl.id))
-              .map(bl => ({
-                id: bl.id,
-                name: bl.name,
-                merchant: bl.merchant,
-                stock: bl.stock,
-                price: bl.price,
-                status: bl.status || 'Verified & Active',
-                badge: bl.badge || 'VERIFIED',
-                type: 'own'
-              }));
-            return [...prev, ...newFromBackend];
-          });
-        }
-      } catch (err) {
-        console.debug('Backend sync offline fallback:', err);
+  // ── Refresh buyer orders after marketplace events ───────────────────────
+  const refreshBuyerOrders = useCallback(async () => {
+    if (!buyerId) return;
+    const requestId = ++buyerOrdersRequestRef.current;
+    try {
+      const backendOrders = await fetchOrders(buyerId);
+      if (requestId === buyerOrdersRequestRef.current && Array.isArray(backendOrders)) {
+        setOrders(mapBackendOrders(backendOrders));
       }
+    } catch (error) {
+      console.error('[Buyer orders] Failed to refresh orders:', error);
     }
+  }, [buyerId]);
 
-    syncDataWithBackend();
-  }, []);
+  useEffect(() => {
+    if (!buyerId) return undefined;
+    refreshBuyerOrders();
+    const refreshTimer = window.setInterval(refreshBuyerOrders, 30000);
+    return () => {
+      buyerOrdersRequestRef.current += 1;
+      window.clearInterval(refreshTimer);
+    };
+  }, [buyerId, refreshBuyerOrders]);
+
+  const handleMarketplaceEvent = useCallback((event) => {
+    if (!buyerId) return;
+    if (['ORDER_CREATED', 'VENDOR_ACKNOWLEDGED', 'VENDOR_ACCEPTED',
+      'VENDOR_REJECTED', 'VENDOR_REASSIGNED', 'ORDER_PREPARING',
+      'ORDER_DISPATCHED', 'ORDER_DELIVERED', 'PRICE_CHANGE_PROPOSED',
+      'BUYER_APPROVED', 'BUYER_REJECTED'].includes(event.type)) {
+      refreshBuyerOrders();
+    }
+  }, [buyerId, refreshBuyerOrders]);
 
   // ── Global keyboard shortcut for ⌘K ───────────────────────────────────
   useEffect(() => {
@@ -206,6 +218,7 @@ export default function App() {
   // ── Buyer sign-in handler ──────────────────────────────────────────────
   const handleBuyerSignIn = (user) => {
     const enriched = { ...user, role: 'buyer' };
+    setOrders([]);
     setCurrentUser(enriched);
     saveSession('buyer', enriched);
     setAppState('buyer_app');
@@ -220,6 +233,7 @@ export default function App() {
   // ── Merchant sign-in handler ───────────────────────────────────────────
   const handleMerchantSignIn = (user) => {
     const enriched = { ...user, role: 'merchant' };
+    setMerchantVendorId(enriched.vendor_id || 'VEN-BLR-001');
     setCurrentUser(enriched);
     saveSession('merchant', enriched);
     setAppState('merchant_app');
@@ -249,6 +263,8 @@ export default function App() {
   const handleSignIn = (user) => {
     const role = appState === 'merchant_app' ? 'merchant' : 'buyer';
     const enriched = { ...user, role };
+    if (role === 'merchant') setMerchantVendorId(enriched.vendor_id || 'VEN-BLR-001');
+    else setOrders([]);
     setCurrentUser(enriched);
     saveSession(role, enriched);
     showToast(`Welcome, ${user.name}! Authenticated with Google.`);
@@ -270,9 +286,22 @@ export default function App() {
     );
   };
 
+  const updateGuardrailItem = (item = {}) => {
+    setGuardrailItem((prev) => ({
+      ...prev,
+      name: item.name || prev.name,
+      price: Number(item.price ?? prev.price),
+      merchant: item.merchant || prev.merchant,
+      monthlyCap: Number(item.monthlyCap ?? rules.monthlyCap ?? prev.monthlyCap),
+      shopperId: item.shopperId || prev.shopperId,
+      ticketRef: item.ticketRef || prev.ticketRef,
+      reason: item.reason || prev.reason
+    }));
+  };
+
   // ── Seller adds new artisan product ───────────────────────────────────
-  const handleAddListing = (listing) => {
-    setSellerListings((prev) => [listing, ...prev]);
+  const handleAddListing = () => {
+    setListingsRefreshVersion((version) => version + 1);
   };
 
   // ── Quick navigation with prompt to Aria (now directly on Explore) ───
@@ -281,86 +310,95 @@ export default function App() {
     setActiveScreen('explore');
   };
 
+  useEffect(() => {
+    setGuardrailItem((prev) => ({
+      ...prev,
+      monthlyCap: Number(rules.monthlyCap ?? prev.monthlyCap)
+    }));
+  }, [rules.monthlyCap]);
+
   // ── Quick order from Picked For You ───────────────────────────────────
   const handleQuickOrder = (product) => {
     if (product.price > rules.approvalThreshold) {
-      showToast(`Selected ${product.name}. This is above your ₹1,00,000 threshold and requires your explicit OK.`);
-      setActiveScreen('needs_ok');
+      showToast(`Checking ${product.name}. If governance requires it, you can approve before fulfillment.`);
     } else {
-      showToast(`Aria is auditing rules for ${product.name}...`);
-      setChatPrompt(`Please verify rules and place order for the ${product.name}`);
-      setActiveScreen('explore');
+      showToast(`Checking governance rules for ${product.name}...`);
     }
+    setChatPrompt(`Please verify rules and place order for the ${product.name} at ₹${Number(product.price).toLocaleString('en-IN')}`);
+    setActiveScreen('explore');
   };
 
   // ── Screen-role auto-synchronization ──────────────────────────────────
   const handleNavigateToScreen = (screenId) => {
     const isSeller = ['seller_hub', 'store_health', 'seller_orders'].includes(screenId);
-    if (isSeller && appState === 'buyer_app') {
-      setAppState('merchant_app');
-      setActiveScreen(screenId);
-    } else if (!isSeller && appState === 'merchant_app') {
-      setAppState('buyer_app');
-      setActiveScreen(screenId);
-    } else {
-      setActiveScreen(screenId);
+    const role = isSeller ? 'merchant' : 'buyer';
+    const session = loadSession(role);
+
+    if (!session) {
+      setAppState(isSeller ? 'merchant_login' : 'buyer_login');
+      return;
     }
+
+    setCurrentUser(session);
+    if (isSeller) setMerchantVendorId(session.vendor_id || 'VEN-BLR-001');
+    else if (session.id !== currentUser?.id) setOrders([]);
+    setAppState(isSeller ? 'merchant_app' : 'buyer_app');
+    setActiveScreen(screenId);
   };
 
   // ── Approve an order ──────────────────────────────────────────────────
   const handleApproveOrder = async (orderId) => {
-    // Optimistic UI update
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id === orderId) {
-          return {
-            ...o,
+    try {
+      const result = await sendHumanApproval(orderId, 'TOKEN-EXPLICIT-AUTH', 'APPROVE', currentUser?.id || 'usr_priya');
+      if (result?.status !== 'AUTHORIZED') {
+        showToast('Approval was not confirmed. The order remains pending.');
+        return false;
+      }
+
+      setOrders((prev) => prev.map((order) => (
+        order.id === orderId
+          ? {
+            ...order,
             status: 'placed',
             stamps: {
-              ...o.stamps,
+              ...order.stamps,
               approval: {
                 title: 'User Approved',
-                desc: `Explicit authorization granted by ${currentUser ? currentUser.name.split(' ')[0] : 'Priya'}`,
+                desc: `Explicit authorization granted by ${currentUser ? currentUser.name.split(' ')[0] : 'the buyer'}`,
                 status: 'placed'
               }
             }
-          };
-        }
-        return o;
-      })
-    );
-
-    // Persist to backend
-    try {
-      await sendHumanApproval(orderId, 'TOKEN-EXPLICIT-AUTH', 'APPROVE');
+          }
+          : order
+      )));
+      return true;
     } catch (err) {
-      console.debug('Human approval backend sync:', err);
+      console.error('Unable to confirm human approval:', err);
+      showToast('Could not reach the governance service. The order remains pending.');
+      return false;
     }
   };
 
   // ── Reject / release hold on order ────────────────────────────────────
   const handleRejectOrder = async (orderId) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id === orderId) {
-          return {
-            ...o,
-            status: 'failed',
-            flagReason: 'Hold released by user · No payment debited'
-          };
-        }
-        return o;
-      })
-    );
-
-    // Persist to backend
     try {
-      await sendHumanApproval(orderId, 'TOKEN-EXPLICIT-RELEASE', 'REJECT');
-    } catch (err) {
-      console.debug('Human reject backend sync:', err);
-    }
+      const result = await sendHumanApproval(orderId, 'TOKEN-EXPLICIT-RELEASE', 'REJECT', currentUser?.id || 'usr_priya');
+      if (result?.status !== 'RELEASED') {
+        showToast('Release was not confirmed. The order remains pending.');
+        return false;
+      }
 
-    showToast(`Order #${orderId} hold released safely. Zero funds debited.`);
+      setOrders((prev) => prev.map((order) => (
+        order.id === orderId
+          ? { ...order, status: 'failed', flagReason: 'Approval rejected by buyer.' }
+          : order
+      )));
+      return true;
+    } catch (err) {
+      console.error('Unable to confirm order release:', err);
+      showToast('Could not reach the governance service. The order remains pending.');
+      return false;
+    }
   };
 
   // ── Raise limit from Screen 4 ──────────────────────────────────────────
@@ -432,10 +470,7 @@ export default function App() {
         activeScreen={activeScreen}
         setActiveScreen={handleNavigateToScreen}
         dashboardMode={dashboardMode}
-        setDashboardMode={(mode) => {
-          if (mode === 'seller') { setAppState('merchant_app'); setActiveScreen('seller_hub'); }
-          else { setAppState('buyer_app'); setActiveScreen('explore'); }
-        }}
+        setDashboardMode={(mode) => handleNavigateToScreen(mode === 'seller' ? 'seller_hub' : 'explore')}
         currentUser={currentUser}
         currentLocation={currentLocation}
         onOpenSearch={() => setCommandPaletteOpen(true)}
@@ -447,6 +482,19 @@ export default function App() {
         cartCount={pendingApprovalsCount}
         pendingApprovalsCount={pendingApprovalsCount}
       />
+
+      {/* Notifications centre — SSE live updates */}
+      {currentUser?.id && (
+        <div style={{ position: 'fixed', top: '14px', right: '14px', zIndex: 60 }}>
+          <NotificationsCentre
+            key={`${currentUser.role}:${currentUser.role === 'merchant' ? merchantVendorId : currentUser.id}`}
+            recipientType={currentUser.role === 'merchant' ? 'vendor' : 'user'}
+            recipientId={currentUser.role === 'merchant' ? merchantVendorId : currentUser.id}
+            onOrderEvent={handleMarketplaceEvent}
+            onNavigateToScreen={handleNavigateToScreen}
+          />
+        </div>
+      )}
 
       {/* Main Content */}
       <main style={{ flex: 1 }}>
@@ -467,6 +515,7 @@ export default function App() {
                 onApproveOrder={handleApproveOrder}
                 onRejectOrder={handleRejectOrder}
                 onAddOrder={(newOrder) => setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id)])}
+                onBlockedItemDetected={updateGuardrailItem}
                 chatPrompt={chatPrompt}
                 setChatPrompt={setChatPrompt}
               />
@@ -479,6 +528,7 @@ export default function App() {
                 currentUser={currentUser}
                 currentLocation={currentLocation}
                 rules={rules}
+                onGuardrailInfo={updateGuardrailItem}
               />
             )}
             {activeScreen === 'needs_ok' && (
@@ -500,6 +550,7 @@ export default function App() {
                 onShowToast={showToast}
                 currentUser={currentUser}
                 rules={rules}
+                guardrailItem={guardrailItem}
               />
             )}
             {activeScreen === 'orders' && (
@@ -539,12 +590,12 @@ export default function App() {
           <>
             {activeScreen === 'seller_hub' && (
               <Screen7_SellerHub
-                sellerListings={sellerListings}
-                orders={orders}
+                listingsRefreshVersion={listingsRefreshVersion}
                 onOpenAddListing={() => setAddListingModalOpen(true)}
                 currentLocation={currentLocation}
                 onShowToast={showToast}
                 currentUser={currentUser}
+                onVendorChange={setMerchantVendorId}
               />
             )}
             {activeScreen === 'store_health' && (
@@ -554,8 +605,6 @@ export default function App() {
             )}
             {activeScreen === 'seller_orders' && (
               <SellerOrderView
-                orders={orders}
-                currentLocation={currentLocation}
                 onShowToast={showToast}
               />
             )}
@@ -627,10 +676,7 @@ export default function App() {
       <Footer
         onNavigateToScreen={handleNavigateToScreen}
         dashboardMode={dashboardMode}
-        setDashboardMode={(mode) => {
-          if (mode === 'seller') { setAppState('merchant_app'); setActiveScreen('seller_hub'); }
-          else { setAppState('buyer_app'); setActiveScreen('explore'); }
-        }}
+        setDashboardMode={(mode) => handleNavigateToScreen(mode === 'seller' ? 'seller_hub' : 'explore')}
       />
     </div>
   );

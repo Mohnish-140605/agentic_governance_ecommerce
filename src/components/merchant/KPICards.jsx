@@ -3,10 +3,7 @@ import {
   Package,
   ShoppingCart,
   XCircle,
-  DollarSign,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus
+  DollarSign
 } from 'lucide-react';
 
 const KPI_CONFIG = [
@@ -16,21 +13,15 @@ const KPI_CONFIG = [
     icon: Package,
     iconBg: 'var(--forest-green-light)',
     iconColor: 'var(--forest-green)',
-    value: '48',
-    change: '+12',
-    changeType: 'up',
-    subtitle: 'vs last month'
+    metric: 'activeProducts'
   },
   {
     id: 'orders',
-    label: 'Completed Orders',
+    label: 'Recorded Orders',
     icon: ShoppingCart,
     iconBg: 'var(--butter-yellow-light)',
     iconColor: 'var(--butter-yellow-dark)',
-    value: '156',
-    change: '+8.3%',
-    changeType: 'up',
-    subtitle: 'This month'
+    metric: 'recordedOrders'
   },
   {
     id: 'cancelled',
@@ -38,55 +29,19 @@ const KPI_CONFIG = [
     icon: XCircle,
     iconBg: 'var(--coral-light)',
     iconColor: 'var(--coral)',
-    value: '3',
-    change: '-1.2%',
-    changeType: 'down',
-    subtitle: 'vs last month'
+    metric: 'cancelledOrders'
   },
   {
     id: 'revenue',
-    label: 'Total Revenue',
+    label: 'Recorded Order Value',
     icon: DollarSign,
     iconBg: 'var(--forest-green-light)',
     iconColor: 'var(--forest-green)',
-    value: '₹4,82,500',
-    change: '+12.5%',
-    changeType: 'up',
-    subtitle: 'vs last month'
+    metric: 'recordedOrderValue'
   }
 ];
 
-function TrendIcon({ type }) {
-  if (type === 'up') return <ArrowUpRight size={14} color="#166534" />;
-  if (type === 'down') return <ArrowDownRight size={14} color="#B91C1C" />;
-  return <Minus size={14} color="var(--ink-muted)" />;
-}
-
-export default function KPICards({ metrics = null }) {
-  // Use real metrics if provided, otherwise use demo data
-  const kpis = metrics ? [
-    {
-      ...KPI_CONFIG[0],
-      value: metrics.activeProducts?.toString() || KPI_CONFIG[0].value,
-      change: metrics.productsChange || KPI_CONFIG[0].change
-    },
-    {
-      ...KPI_CONFIG[1],
-      value: metrics.completedOrders?.toString() || KPI_CONFIG[1].value,
-      change: metrics.ordersChange || KPI_CONFIG[1].change
-    },
-    {
-      ...KPI_CONFIG[2],
-      value: metrics.cancelledOrders?.toString() || KPI_CONFIG[2].value,
-      change: metrics.cancelledChange || KPI_CONFIG[2].change
-    },
-    {
-      ...KPI_CONFIG[3],
-      value: metrics.revenue ? `₹${metrics.revenue.toLocaleString('en-IN')}` : KPI_CONFIG[3].value,
-      change: metrics.revenueChange || KPI_CONFIG[3].change
-    }
-  ] : KPI_CONFIG;
-
+export default function KPICards({ metrics = null, ordersUnavailable = false, listingsUnavailable = false }) {
   return (
     <div className="kpi-grid" style={{
       display: 'grid',
@@ -94,8 +49,10 @@ export default function KPICards({ metrics = null }) {
       gap: '16px',
       marginBottom: '24px'
     }}>
-      {kpis.map((kpi) => {
+      {KPI_CONFIG.map((kpi) => {
         const Icon = kpi.icon;
+        const value = metrics?.[kpi.metric];
+        const isUnavailable = kpi.id === 'products' ? listingsUnavailable : ordersUnavailable;
         return (
           <div
             key={kpi.id}
@@ -119,17 +76,6 @@ export default function KPICards({ metrics = null }) {
               }}>
                 <Icon size={20} color={kpi.iconColor} />
               </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: kpi.changeType === 'up' ? '#166534' : kpi.changeType === 'down' ? '#B91C1C' : 'var(--ink-muted)'
-              }}>
-                <TrendIcon type={kpi.changeType} />
-                <span>{kpi.change}</span>
-              </div>
             </div>
             <div style={{
               fontSize: '13px',
@@ -145,14 +91,20 @@ export default function KPICards({ metrics = null }) {
               color: 'var(--ink)',
               lineHeight: 1.2
             }}>
-              {kpi.value}
+              {kpi.id === 'revenue' && value != null
+                ? `₹${Number(value).toLocaleString('en-IN')}`
+                : value ?? '—'}
             </div>
             <div style={{
               fontSize: '11px',
               color: 'var(--ink-muted)',
               marginTop: '4px'
             }}>
-              {kpi.subtitle}
+              {isUnavailable
+                ? 'Backend data unavailable'
+                : kpi.id === 'revenue'
+                  ? 'Placed or dispatched order prices; not settlement data'
+                  : 'From backend records'}
             </div>
           </div>
         );

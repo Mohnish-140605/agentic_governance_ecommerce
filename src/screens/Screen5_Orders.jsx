@@ -6,9 +6,57 @@ import {
   FileCheck, 
   ShieldCheck,
   ChevronRight,
-  X
+  X,
+  Truck
 } from 'lucide-react';
 import TrustReceipt from '../components/TrustReceipt';
+
+const ORDER_STATUS_LABELS = {
+  allocated: 'Awaiting vendor',
+  acknowledged: 'Vendor acknowledged',
+  accepted: 'Vendor accepted',
+  preparing: 'Preparing',
+  dispatched: 'On the way',
+  delivered: 'Delivered',
+  rejected: 'Vendor declined',
+  cancelled: 'Cancelled',
+  placed: 'Placed',
+  needs_ok: 'Needs your OK',
+  failed: 'Not placed'
+};
+
+const ACTIVE_ORDER_STATUSES = ['allocated', 'acknowledged', 'accepted', 'preparing'];
+
+function getOrderStatusMessage(order) {
+  switch (order.status) {
+    case 'allocated':
+      return `Assigned to ${order.vendor_name || order.merchant || 'a nearby store'}; waiting for vendor confirmation.`;
+    case 'acknowledged':
+      return 'The vendor acknowledged your order and is reviewing it.';
+    case 'accepted':
+      return 'The vendor accepted your order and is preparing the shipment.';
+    case 'preparing':
+      return 'Your order is being prepared by the vendor.';
+    case 'dispatched':
+      return order.tracking_ref
+        ? `Your order was dispatched via ${order.carrier_name || 'the carrier'}. Tracking reference: ${order.tracking_ref}.`
+        : 'Your order has been dispatched by the vendor.';
+    case 'delivered':
+      return 'Your order has been marked delivered.';
+    case 'rejected':
+      return 'The vendor declined. Cairn is checking for another eligible store.';
+    case 'cancelled':
+      return 'This order was cancelled.';
+    case 'placed':
+      return 'Your order was placed; fulfillment updates will appear here.';
+    case 'needs_ok':
+      return 'Waiting for your explicit OK before the order can proceed.';
+    case 'failed':
+      return order.flagReason || 'This order was not placed.';
+    default:
+      return 'Order status is being updated.';
+  }
+}
 
 export default function Screen5_Orders({
   orders,
@@ -17,16 +65,18 @@ export default function Screen5_Orders({
   currentUser: _currentUser,
   currentLocation: _currentLocation
 }) {
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'needs_ok' | 'placed' | 'failed'
+  const [activeTab, setActiveTab] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   const filteredOrders = orders.filter((order) => {
     if (activeTab === 'all') return true;
+    if (activeTab === 'active') return ACTIVE_ORDER_STATUSES.includes(order.status);
     return order.status === activeTab;
   });
 
   const getCount = (status) => {
     if (status === 'all') return orders.length;
+    if (status === 'active') return orders.filter((order) => ACTIVE_ORDER_STATUSES.includes(order.status)).length;
     return orders.filter(o => o.status === status).length;
   };
 
@@ -55,7 +105,7 @@ export default function Screen5_Orders({
               Order Sanctuary
             </h1>
             <p style={{ fontSize: '16px', color: 'var(--ink-secondary)', marginTop: '4px' }}>
-              Every past and pending acquisition, verified by cryptographic receipts.
+              Track vendor confirmation, preparation, and shipment updates.
             </p>
           </div>
 
@@ -70,9 +120,9 @@ export default function Screen5_Orders({
             border: '1px solid var(--border-cream)',
             boxShadow: 'var(--shadow-warm-sm)'
           }}>
-            <span style={{ fontSize: '13px', color: 'var(--ink-secondary)' }}>Total Settled:</span>
+            <span style={{ fontSize: '13px', color: 'var(--ink-secondary)' }}>Orders:</span>
             <strong style={{ fontSize: '14px', color: 'var(--forest-green)' }}>
-              ₹{orders.filter(o => o.status === 'placed').reduce((acc, curr) => acc + curr.price, 0).toLocaleString('en-IN')}
+              {orders.length}
             </strong>
           </div>
         </div>
@@ -81,6 +131,7 @@ export default function Screen5_Orders({
         <div style={{
           display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: '8px',
           marginBottom: '32px',
           borderBottom: '1px solid var(--border-cream)',
@@ -89,6 +140,9 @@ export default function Screen5_Orders({
           {[
             { id: 'all', label: 'All' },
             { id: 'needs_ok', label: 'Needs my OK' },
+            { id: 'active', label: 'In progress' },
+            { id: 'dispatched', label: 'On the way' },
+            { id: 'delivered', label: 'Delivered' },
             { id: 'placed', label: 'Placed' },
             { id: 'failed', label: 'Not placed' }
           ].map((tab) => {
@@ -176,15 +230,16 @@ export default function Screen5_Orders({
                       <span style={{ fontSize: '11.5px', fontFamily: 'monospace', color: 'var(--ink-muted)' }}>
                         #{order.id}
                       </span>
-                      {order.status === 'placed' && (
-                        <span className="badge-placed">● Placed</span>
-                      )}
-                      {order.status === 'needs_ok' && (
-                        <span className="badge-review">● Needs your OK</span>
-                      )}
-                      {order.status === 'failed' && (
-                        <span className="badge-failed">● Not placed</span>
-                      )}
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '9999px',
+                        color: ['failed', 'rejected', 'cancelled'].includes(order.status) ? '#B91C1C' : 'var(--forest-green)',
+                        background: ['failed', 'rejected', 'cancelled'].includes(order.status) ? '#FEE2E2' : 'var(--forest-green-light)'
+                      }}>
+                        {ORDER_STATUS_LABELS[order.status] || 'Status update pending'}
+                      </span>
                     </div>
 
                     <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 600, color: 'var(--ink)', marginBottom: '4px' }}>
@@ -196,7 +251,7 @@ export default function Screen5_Orders({
                     </div>
 
                     <div style={{ fontSize: '17px', fontWeight: 700, color: 'var(--ink)' }}>
-                      ₹{order.price.toLocaleString('en-IN')}
+                      {order.price == null ? 'Price unavailable' : `₹${Number(order.price).toLocaleString('en-IN')}`}
                     </div>
                   </div>
                 </div>
@@ -214,14 +269,19 @@ export default function Screen5_Orders({
                     alignItems: 'center',
                     gap: '8px'
                   }}>
-                    {order.status === 'placed' && <CheckCircle2 size={16} color="var(--forest-green)" />}
-                    {order.status === 'needs_ok' && <Clock size={16} color="var(--butter-yellow-dark)" />}
-                    {order.status === 'failed' && <XCircle size={16} color="var(--coral-dark)" />}
+                    {order.status === 'dispatched' ? <Truck size={16} color="var(--forest-green)" /> : null}
+                    {ACTIVE_ORDER_STATUSES.includes(order.status) || order.status === 'needs_ok'
+                      ? <Clock size={16} color="var(--butter-yellow-dark)" />
+                      : null}
+                    {order.status === 'delivered' || order.status === 'placed'
+                      ? <CheckCircle2 size={16} color="var(--forest-green)" />
+                      : null}
+                    {['failed', 'rejected', 'cancelled'].includes(order.status)
+                      ? <XCircle size={16} color="var(--coral-dark)" />
+                      : null}
 
                     <span>
-                      {order.status === 'placed' && (order.deliveryDate || 'Dispatched with care · 15-min tranquility hold passed')}
-                      {order.status === 'needs_ok' && 'Waiting for your explicit OK · 15-minute hold active'}
-                      {order.status === 'failed' && (order.flagReason || 'Safely held: exceeded self-imposed limit')}
+                      {getOrderStatusMessage(order)}
                     </span>
                   </div>
 
@@ -310,10 +370,6 @@ export default function Screen5_Orders({
                 sha256={selectedOrder.sha256}
                 stamps={selectedOrder.stamps}
                 onShowToast={onShowToast}
-                onTrackOrder={() => {
-                  setSelectedOrder(null);
-                  if (onShowToast) onShowToast("Courier route synchronized with Delhi logistics hub.");
-                }}
               />
             </div>
           </div>

@@ -9,10 +9,12 @@ Production-hardened FastAPI Backend for Cairn Agentic Commerce Platform.
 - Graceful startup / shutdown lifecycle events
 """
 
+import asyncio
 import time
 import uuid
 import logging
 import json
+import math
 from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional
 
@@ -41,9 +43,17 @@ from .models.schemas import (
 from .governance.engine import GovernanceEngine
 from .governance.policies import PolicyRule
 from .agents.workflow import MultiAgentCommerceWorkflow
+from .agents.llm_client import llm_client
 from .sla.telemetry import sla_monitor
 from .models.database import db
 from .services.product_fetcher import product_fetcher
+from .marketplace.store import store as marketplace_store
+from .marketplace.geo import resolve_buyer_location, locality_to_coords, haversine_km
+from .marketplace.allocation import find_eligible_vendors, allocate_order
+from .marketplace import service as order_service
+from .marketplace import notifications as notify_service
+from .marketplace.payments import payment_provider
+from .marketplace.receipts import build_order_receipt, verify_receipt
 
 # ── Structured JSON Logger ─────────────────────────────────────────────────
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL, logging.INFO))
@@ -131,7 +141,10 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Correlation-ID", "X-Cairn-API-Key"],
+    allow_headers=[
+        "Content-Type", "Authorization", "X-Correlation-ID",
+        "X-Cairn-API-Key", "X-Cairn-Vendor-Id"
+    ],
     expose_headers=["X-Correlation-ID", "X-Response-Time-Ms"],
     max_age=600,
 )
@@ -190,6 +203,7 @@ async def health_check(request: Request):
         "environment": settings.ENVIRONMENT,
         "governance_engine": "Deterministic Active",
         "database": "connected" if db_ok else "unreachable",
+        "llm": llm_client.health_check(),
         "timestamp": time.time(),
     }
 
@@ -202,6 +216,7 @@ async def handle_agent_chat(request: Request, payload: Dict[str, Any] = Body(...
     """
     query = payload.get("query", "").strip()
     user_id = payload.get("user_id", "usr_priya")
+    explicit_order = payload.get("explicit_order") is True
 
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
@@ -221,15 +236,8 @@ async def handle_agent_chat(request: Request, payload: Dict[str, Any] = Body(...
     gov_latency = gov_res.evaluation_latency_ms if gov_res else 0.0
     llm_latency = max(0.0, t_total_ms - gov_latency)
 
-    sla_monitor.record_transaction(
-        endpoint="/api/agents/chat",
-        llm_latency_ms=llm_latency,
-        gov_latency_ms=gov_latency,
-        structured_valid=(proposal is not None),
-        governance_enforced=True,
-        audit_logged=True
-    )
-
+    audit_logged = False
+    order_recorded = False
     if gov_res and proposal:
         try:
             db.log_audit_record(
@@ -246,8 +254,9 @@ async def handle_agent_chat(request: Request, payload: Dict[str, Any] = Body(...
                 evidence=gov_res.evidence,
                 explainability=gov_res.explainability
             )
+            audit_logged = True
 
-            if gov_res.decision == GovernanceDecision.AUTO_EXECUTE:
+            if explicit_order and gov_res.decision == GovernanceDecision.AUTO_EXECUTE:
                 db.create_order(
                     order_id=f"CRN-{proposal.proposal_id[-5:]}",
                     user_id=user_id,
@@ -260,7 +269,8 @@ async def handle_agent_chat(request: Request, payload: Dict[str, Any] = Body(...
                     destination="Jor Bagh, New Delhi",
                     sha256=gov_res.audit_hash
                 )
-            elif gov_res.decision == GovernanceDecision.HUMAN_APPROVAL:
+                order_recorded = True
+            elif explicit_order and gov_res.decision == GovernanceDecision.HUMAN_APPROVAL:
                 db.create_order(
                     order_id=f"CRN-{proposal.proposal_id[-5:]}",
                     user_id=user_id,
@@ -274,8 +284,35 @@ async def handle_agent_chat(request: Request, payload: Dict[str, Any] = Body(...
                     sha256=gov_res.audit_hash,
                     flag_reason=gov_res.reason_text
                 )
+                order_recorded = True
         except Exception as db_err:
             _log("warning", "db_write_failed", error=str(db_err), correlation_id=correlation_id)
+            if explicit_order and gov_res.decision in (
+                GovernanceDecision.AUTO_EXECUTE,
+                GovernanceDecision.HUMAN_APPROVAL
+            ):
+                raise HTTPException(
+                    status_code=503,
+                    detail="The governance decision could not be persisted. No order was confirmed."
+                ) from db_err
+
+    if explicit_order and gov_res and proposal and gov_res.decision in (
+        GovernanceDecision.AUTO_EXECUTE,
+        GovernanceDecision.HUMAN_APPROVAL
+    ) and not order_recorded:
+        raise HTTPException(
+            status_code=503,
+            detail="The governance decision could not be persisted. No order was confirmed."
+        )
+
+    sla_monitor.record_transaction(
+        endpoint="/api/agents/chat",
+        llm_latency_ms=llm_latency,
+        gov_latency_ms=gov_latency,
+        structured_valid=(proposal is not None),
+        governance_enforced=(gov_res is not None),
+        audit_logged=audit_logged
+    )
 
     # Fetch live online matches dynamically for the user's query
     live_online_products = product_fetcher.search_online_products(query, limit=5)
@@ -346,15 +383,7 @@ async def direct_governance_evaluate(proposal: ActionProposal):
     result = workflow.governance_engine.evaluate(proposal)
     gov_lat = round((time.perf_counter() - t_start) * 1000.0, 2)
 
-    sla_monitor.record_transaction(
-        endpoint="/api/governance/evaluate",
-        llm_latency_ms=0.0,
-        gov_latency_ms=gov_lat,
-        structured_valid=True,
-        governance_enforced=True,
-        audit_logged=True
-    )
-
+    audit_logged = False
     try:
         db.log_audit_record(
             proposal_id=proposal.proposal_id,
@@ -370,8 +399,18 @@ async def direct_governance_evaluate(proposal: ActionProposal):
             evidence=result.evidence,
             explainability=result.explainability
         )
+        audit_logged = True
     except Exception as db_err:
         _log("warning", "audit_log_failed", error=str(db_err))
+
+    sla_monitor.record_transaction(
+        endpoint="/api/governance/evaluate",
+        llm_latency_ms=0.0,
+        gov_latency_ms=gov_lat,
+        structured_valid=True,
+        governance_enforced=True,
+        audit_logged=audit_logged
+    )
 
     return result
 
@@ -384,17 +423,19 @@ async def handle_human_approval(request: ApprovalRequest):
 
     order_id = f"CRN-{request.proposal_id[-5:]}"
     if request.decision.upper() == "APPROVE":
-        db.update_order_status(order_id, "placed")
+        if not db.update_order_status(order_id, "placed"):
+            raise HTTPException(status_code=404, detail=f"Order {order_id} was not found.")
         return {
             "status": "AUTHORIZED",
-            "message": f"Order #{request.proposal_id} authorized by human. Dispatched to verified seller.",
+            "message": f"Order #{request.proposal_id} approval recorded. Seller fulfillment remains pending.",
             "execution_permitted": True
         }
     else:
-        db.update_order_status(order_id, "failed")
+        if not db.update_order_status(order_id, "failed"):
+            raise HTTPException(status_code=404, detail=f"Order {order_id} was not found.")
         return {
             "status": "RELEASED",
-            "message": f"Hold on order #{request.proposal_id} released. Zero funds debited.",
+            "message": f"Order #{request.proposal_id} was released. Payment and fulfillment are not connected in this demo.",
             "execution_permitted": False
         }
 
@@ -434,7 +475,8 @@ async def dispatch_merchant_order(payload: Dict[str, Any] = Body(...)):
     if not order_id:
         raise HTTPException(status_code=400, detail="order_id is required.")
 
-    db.update_order_status(order_id, "dispatched")
+    if not db.update_order_status(order_id, "dispatched"):
+        raise HTTPException(status_code=404, detail=f"Order {order_id} was not found.")
     _log("info", "order_dispatched", order_id=order_id)
     return {
         "status": "DISPATCHED",
@@ -445,26 +487,99 @@ async def dispatch_merchant_order(payload: Dict[str, Any] = Body(...)):
 
 @app.get("/api/listings")
 async def get_merchant_listings():
-    """Returns all verified merchant listings."""
+    """Returns all merchant listings."""
     return db.get_listings()
 
 
 @app.post("/api/listings")
 async def create_merchant_listing(payload: Dict[str, Any] = Body(...)):
-    """Registers a new artisan product into the persistent catalog."""
-    name = payload.get("name", "").strip()
+    """Govern, audit, then register an artisan product in the persistent catalog."""
+    name = payload.get("name")
+    if not isinstance(name, str):
+        name = ""
+    name = name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Listing name is required.")
-    price = float(payload.get("price", 0.0))
-    if price <= 0:
+    try:
+        price = float(payload.get("price", 0.0))
+        stock = int(payload.get("stock", 1))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Price and stock must be numeric.")
+    if not math.isfinite(price) or price <= 0:
         raise HTTPException(status_code=400, detail="Price must be greater than zero.")
+    if stock < 0:
+        raise HTTPException(status_code=400, detail="Stock cannot be negative.")
 
-    listing_id = payload.get("id") or f"SKU-{int(time.time() % 100000)}"
-    merchant = payload.get("merchant", "Verified Artisan Studio").strip()
-    stock = max(0, int(payload.get("stock", 1)))
+    listing_id = f"SKU-{uuid.uuid4().hex[:10].upper()}"
+    merchant = payload.get("merchant", "Verified Artisan Studio")
+    if not isinstance(merchant, str) or not merchant.strip():
+        raise HTTPException(status_code=400, detail="Merchant name is required.")
+    merchant = merchant.strip()
     category = payload.get("category", "Living")
-    badge = payload.get("badge", "VERIFIED")
-    status = payload.get("status", "Verified & Active")
+    if not isinstance(category, str) or not category.strip():
+        raise HTTPException(status_code=400, detail="Listing category is required.")
+    category = category.strip()
+    badge = "GOVERNED"
+    status = "Active"
+
+    proposal = ActionProposal(
+        agent_id="merchant_studio",
+        agent_role=AgentRole.MERCHANT_AGENT,
+        action_type=ActionType.CREATE_LISTING,
+        product_id=str(listing_id),
+        product_name=name,
+        category=category,
+        requested_price=price,
+        merchant_name=merchant,
+        user_id=None,
+        metadata={"listing_price": price, "stock": stock, "category": category}
+    )
+    gov_started = time.perf_counter()
+    result = workflow.governance_engine.evaluate(proposal)
+    gov_latency_ms = round((time.perf_counter() - gov_started) * 1000.0, 2)
+
+    try:
+        db.log_audit_record(
+            proposal_id=proposal.proposal_id,
+            agent_id=proposal.agent_id,
+            agent_role=proposal.agent_role.value,
+            action_type=proposal.action_type.value,
+            requested_price=proposal.requested_price,
+            decision=result.decision.value,
+            reason_code=result.reason_code,
+            risk_score=result.risk.composite_score,
+            has_conflict=result.conflict.has_conflict,
+            sha256_hash=result.audit_hash,
+            evidence=result.evidence,
+            explainability=result.explainability
+        )
+    except Exception as db_err:
+        _log("error", "listing_governance_audit_failed", error=str(db_err), proposal_id=proposal.proposal_id)
+        raise HTTPException(status_code=503, detail="Listing audit could not be recorded; listing was not published.")
+
+    sla_monitor.record_transaction(
+        endpoint="/api/listings",
+        llm_latency_ms=0.0,
+        gov_latency_ms=gov_latency_ms,
+        structured_valid=True,
+        governance_enforced=True,
+        audit_logged=True
+    )
+
+    if not result.execution_permitted:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "status": result.decision.value,
+                "governance": {
+                    "decision": result.decision.value,
+                    "reason_code": result.reason_code,
+                    "reason_text": result.reason_text,
+                    "audit_hash": result.audit_hash
+                },
+                "message": f"Listing '{name}' was not published because governance did not authorize execution."
+            }
+        )
 
     db.add_listing(
         listing_id=listing_id,
@@ -490,7 +605,12 @@ async def create_merchant_listing(payload: Dict[str, Any] = Body(...)):
             "status": status,
             "type": "own"
         },
-        "message": f"Listing '{name}' safely published to Cairn catalog."
+        "governance": {
+            "decision": result.decision.value,
+            "reason_code": result.reason_code,
+            "audit_hash": result.audit_hash
+        },
+        "message": f"Listing '{name}' passed governance and was published to the Cairn catalog."
     }
 
 
@@ -599,6 +719,388 @@ async def get_category_products(category_slug: str, limit: int = 12):
         "count": len(audited),
         "results": audited
     }
+
+
+# ── Marketplace: Vendors, Geo, Allocation, Notifications ──────────────────
+
+def _caller_vendor_id(request: Request) -> Optional[str]:
+    """Dev-grade vendor identity via header; JWT upgrade documented."""
+    return request.headers.get("X-Cairn-Vendor-Id")
+
+
+def _require_vendor(request: Request) -> str:
+    vid = _caller_vendor_id(request)
+    if not vid:
+        raise HTTPException(status_code=401, detail="X-Cairn-Vendor-Id header required.")
+    if not marketplace_store.get_vendor(vid):
+        raise HTTPException(status_code=403, detail="Unknown vendor.")
+    return vid
+
+
+@app.get("/api/vendors")
+async def list_vendors(status: Optional[str] = None):
+    """List all vendors (demo data is flagged is_demo=1)."""
+    return {"vendors": marketplace_store.list_vendors(status=status)}
+
+
+@app.get("/api/vendors/nearby")
+async def nearby_vendors(lat: Optional[float] = None, lng: Optional[float] = None,
+                         locality: Optional[str] = None, radius_km: float = 25.0):
+    """Rank vendors by distance to a buyer location."""
+    buyer = resolve_buyer_location({"lat": lat, "lng": lng, "locality": locality})
+    vendors = marketplace_store.list_vendors(status="active")
+    ranked = []
+    for v in vendors:
+        if v.get("lat") is None:
+            continue
+        dist = haversine_km(buyer["lat"], buyer["lng"], float(v["lat"]), float(v["lng"]))
+        radius = float(v.get("service_radius_km") or 15.0)
+        ranked.append({
+            **v,
+            "distance_km": round(dist, 2),
+            "serves_buyer": dist <= min(radius, radius_km),
+            "service_radius_km": radius,
+        })
+    ranked.sort(key=lambda x: x["distance_km"])
+    return {"buyer": buyer, "radius_km": radius_km, "vendors": ranked}
+
+
+@app.get("/api/vendors/{vendor_id}")
+async def get_vendor(vendor_id: str):
+    v = marketplace_store.get_vendor(vendor_id)
+    if not v:
+        raise HTTPException(status_code=404, detail="Vendor not found.")
+    return v
+
+
+@app.get("/api/products/{product_id}/offers")
+async def product_offers(product_id: str, lat: Optional[float] = None,
+                         lng: Optional[float] = None, locality: Optional[str] = None):
+    """All vendor offers for a product, ranked by allocation score."""
+    buyer = resolve_buyer_location({"lat": lat, "lng": lng, "locality": locality})
+    result = find_eligible_vendors(product_id, buyer)
+    return result
+
+
+@app.post("/api/orders/allocate")
+async def allocate_order_endpoint(payload: Dict[str, Any] = Body(...)):
+    """
+    Allocate an order to the best eligible nearby vendor.
+    Body: {product_id, user_id, quantity, lat/lng or locality,
+           preferred_vendor_id?, max_radius_km?, max_price_paise?}
+    """
+    product_id = payload.get("product_id")
+    if not product_id:
+        raise HTTPException(status_code=400, detail="product_id is required.")
+    user_id = payload.get("user_id", "usr_default")
+    quantity = int(payload.get("quantity", 1))
+    buyer = resolve_buyer_location(payload)
+    order_id = payload.get("order_id") or f"CRN-ALLOC-{uuid.uuid4().hex[:8].upper()}"
+
+    result = allocate_order(
+        product_id=product_id, buyer=buyer, order_id=order_id,
+        quantity=quantity, user_id=user_id,
+        preferred_vendor_id=payload.get("preferred_vendor_id"),
+        max_radius_km=payload.get("max_radius_km"),
+        max_price_paise=payload.get("max_price_paise"),
+        min_price_paise=payload.get("min_price_paise"))
+
+    if result["status"] == "ALLOCATED":
+        # Persist a legacy orders row so buyer dashboards see it
+        v = result["vendor"]
+        try:
+            db.create_order(
+                order_id=order_id, user_id=user_id, product_id=product_id,
+                product_name=payload.get("product_name", product_id),
+                specs=payload.get("specs", ""),
+                price=v["price_paise"] / 100.0, merchant=v["store_name"],
+                status="allocated", destination=buyer.get("locality", ""),
+                sha256="", flag_reason=None)
+            # enrich with vendor columns
+            from sqlalchemy import text
+            from .models.database import SessionLocal
+            with SessionLocal() as s:
+                s.execute(text("""
+                    UPDATE orders SET vendor_id=:vid, vendor_name=:vname,
+                    vendor_locality=:vloc, distance_km=:dist,
+                    price_paise=:pp, allocation_id=:aid, payment_status='pending'
+                    WHERE id=:oid
+                """), {"vid": v["vendor_id"], "vname": v["store_name"],
+                       "vloc": v["locality"], "dist": v["distance_km"],
+                       "pp": v["price_paise"], "aid": result["allocation_id"],
+                       "oid": order_id})
+                s.commit()
+        except Exception as e:
+            _log("warning", "order_persist_failed", error=str(e), order_id=order_id)
+
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.get("/api/orders/{order_id}/vendor")
+async def order_vendor_detail(order_id: str):
+    """Buyer-facing order + assigned vendor details (Priority 5)."""
+    detail = order_service.get_order_with_vendor(order_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    return detail
+
+
+@app.get("/api/vendor/orders")
+async def vendor_orders(request: Request):
+    """Merchant inbox: all orders allocated to the calling vendor."""
+    vid = _require_vendor(request)
+    return order_service.list_vendor_orders(vid)
+
+
+@app.post("/api/vendor/orders/{order_id}/acknowledge")
+async def vendor_acknowledge(order_id: str, request: Request):
+    vid = _require_vendor(request)
+    result = order_service.vendor_acknowledge(order_id, vid)
+    if result["status"] == "FORBIDDEN":
+        raise HTTPException(status_code=403, detail=result["message"])
+    if result["status"] == "CONFLICT":
+        raise HTTPException(status_code=409, detail=result["message"])
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.post("/api/vendor/orders/{order_id}/accept")
+async def vendor_accept(order_id: str, request: Request):
+    vid = _require_vendor(request)
+    result = order_service.vendor_accept(order_id, vid)
+    if result["status"] == "FORBIDDEN":
+        raise HTTPException(status_code=403, detail=result["message"])
+    if result["status"] == "CONFLICT":
+        raise HTTPException(status_code=409, detail=result["message"])
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.post("/api/vendor/orders/{order_id}/prepare")
+async def vendor_prepare(order_id: str, request: Request):
+    vid = _require_vendor(request)
+    result = order_service.vendor_prepare(order_id, vid)
+    if result["status"] == "FORBIDDEN":
+        raise HTTPException(status_code=403, detail=result["message"])
+    if result["status"] == "CONFLICT":
+        raise HTTPException(status_code=409, detail=result["message"])
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.post("/api/vendor/orders/{order_id}/reject")
+async def vendor_reject(order_id: str, request: Request,
+                        payload: Dict[str, Any] = Body(default={})):
+    vid = _require_vendor(request)
+    result = order_service.vendor_reject(order_id, vid,
+                                         reason=payload.get("reason", ""))
+    if result["status"] == "FORBIDDEN":
+        raise HTTPException(status_code=403, detail=result["message"])
+    if result["status"] == "CONFLICT":
+        raise HTTPException(status_code=409, detail=result["message"])
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.post("/api/vendor/orders/{order_id}/price-proposal")
+async def vendor_price_proposal(order_id: str, request: Request,
+                                payload: Dict[str, Any] = Body(...)):
+    vid = _require_vendor(request)
+    price_paise = int(payload.get("price_paise", 0))
+    result = order_service.vendor_propose_price(
+        order_id, vid, price_paise, reason=payload.get("reason", ""))
+    if result["status"] == "FORBIDDEN":
+        raise HTTPException(status_code=403, detail=result["message"])
+    if result["status"] in ("INVALID", "POLICY_BLOCK"):
+        raise HTTPException(status_code=422, detail=result["message"])
+    if result["status"] == "CONFLICT":
+        raise HTTPException(status_code=409, detail=result["message"])
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.post("/api/vendor/orders/{order_id}/dispatch")
+async def vendor_dispatch(order_id: str, request: Request,
+                          payload: Dict[str, Any] = Body(default={})):
+    vid = _require_vendor(request)
+    result = order_service.vendor_dispatch(
+        order_id, vid, carrier_name=payload.get("carrier_name", ""),
+        tracking_ref=payload.get("tracking_ref", ""))
+    if result["status"] == "FORBIDDEN":
+        raise HTTPException(status_code=403, detail=result["message"])
+    if result["status"] == "INVALID":
+        raise HTTPException(status_code=422, detail=result["message"])
+    if result["status"] == "CONFLICT":
+        raise HTTPException(status_code=409, detail=result["message"])
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.post("/api/orders/price-proposals/{proposal_id}/resolve")
+async def buyer_resolve_price(proposal_id: str, request: Request,
+                              payload: Dict[str, Any] = Body(...)):
+    user_id = payload.get("user_id", "usr_default")
+    approve = bool(payload.get("approve"))
+    result = order_service.buyer_resolve_price_proposal(proposal_id, user_id, approve)
+    if result["status"] == "FORBIDDEN":
+        raise HTTPException(status_code=403, detail=result["message"])
+    if result["status"] == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail="Proposal not found.")
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.get("/api/notifications")
+async def list_notifications(request: Request, recipient_type: str,
+                             recipient_id: str, unread_only: bool = False):
+    return {"notifications": marketplace_store.list_notifications(
+        recipient_type, recipient_id, unread_only=unread_only)}
+
+
+@app.post("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, request: Request,
+                                 payload: Dict[str, Any] = Body(...)):
+    recipient_id = payload.get("recipient_id", "")
+    ok = marketplace_store.mark_notification_read(notification_id, recipient_id)
+    return {"status": "READ" if ok else "NOT_FOUND"}
+
+
+@app.get("/api/sla/instances")
+async def sla_instances(order_id: Optional[str] = None,
+                        vendor_id: Optional[str] = None,
+                        status: Optional[str] = None):
+    return {"instances": marketplace_store.get_sla_instances(
+        order_id=order_id, vendor_id=vendor_id, status=status)}
+
+
+@app.post("/api/sla/check-breaches")
+async def check_sla_breaches():
+    breached = marketplace_store.check_sla_breaches()
+    for b in breached:
+        await notify_service.drain_outbox_once()
+        notify_service.notify_vendor_event(
+            b.get("vendor_id") or "", "SLA_BREACHED",
+            "SLA breached",
+            f"Order {b['order_id']} ({b['sla_type']}) missed its deadline.",
+            {"order_id": b["order_id"], "sla_id": b["id"]})
+    return {"breached": len(breached), "instances": breached}
+
+
+# ── Payments (sandbox) & Trust Receipts ────────────────────────────────────
+
+@app.post("/api/orders/{order_id}/payment/create")
+async def create_payment(order_id: str, payload: Dict[str, Any] = Body(default={})):
+    """Create a sandbox payment intent for an allocated order."""
+    detail = order_service.get_order_with_vendor(order_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    amount_paise = detail.get("price_paise")
+    if not amount_paise:
+        # fall back to price*100
+        price = detail.get("price") or 0
+        amount_paise = int(float(price) * 100)
+    if amount_paise <= 0:
+        raise HTTPException(status_code=400, detail="Order has no payable amount.")
+    result = payment_provider.create_payment(
+        order_id=order_id, amount_paise=amount_paise,
+        metadata={"user_id": detail.get("user_id"),
+                  "vendor_id": (detail.get("vendor") or {}).get("vendor_id")})
+    return {"status": "CREATED", "sandbox": True,
+            **{k: v for k, v in result.items() if k != "status"}}
+
+
+@app.post("/api/orders/{order_id}/payment/confirm")
+async def confirm_payment(order_id: str, payload: Dict[str, Any] = Body(...)):
+    """Confirm a sandbox payment (simulates gateway callback)."""
+    payment_id = payload.get("payment_id")
+    if not payment_id:
+        # auto-confirm latest payment for this order
+        p = payment_provider.get_payment_for_order(order_id)
+        if not p:
+            raise HTTPException(status_code=404, detail="No payment found for order.")
+        payment_id = p["id"]
+    result = payment_provider.confirm_payment(payment_id)
+    if result["status"] == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail="Payment not found.")
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.post("/api/orders/{order_id}/payment/refund")
+async def refund_payment(order_id: str, payload: Dict[str, Any] = Body(default={})):
+    """Refund the sandbox payment for an order."""
+    payment_id = payload.get("payment_id")
+    if not payment_id:
+        p = payment_provider.get_payment_for_order(order_id)
+        if not p:
+            raise HTTPException(status_code=404, detail="No payment found for order.")
+        payment_id = p["id"]
+    result = payment_provider.refund(payment_id)
+    if result["status"] == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail="Payment not found.")
+    if result["status"] == "CONFLICT":
+        raise HTTPException(status_code=409, detail=result["message"])
+    await notify_service.drain_outbox_once()
+    return result
+
+
+@app.get("/api/orders/{order_id}/payment")
+async def get_order_payment(order_id: str):
+    p = payment_provider.get_payment_for_order(order_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="No payment found for order.")
+    return p
+
+
+@app.get("/api/orders/{order_id}/receipt")
+async def get_order_receipt(order_id: str):
+    """Signed trust receipt for an order (HMAC-SHA256 canonical payload)."""
+    receipt = build_order_receipt(order_id)
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    return receipt
+
+
+@app.post("/api/receipts/verify")
+async def verify_receipt_endpoint(payload: Dict[str, Any] = Body(...)):
+    """Verify a trust receipt's signature."""
+    receipt = payload.get("receipt")
+    valid = verify_receipt(receipt or {})
+    return {"valid": valid}
+
+
+@app.get("/api/events")
+async def sse_events(request: Request, scope: str):
+    """
+    Server-Sent Events stream. Subscribe with scope=vendor:VEN-BLR-001,
+    user:usr_priya, or order:CRN-....
+    """
+    from fastapi.responses import StreamingResponse
+
+    scope_type, separator, recipient_id = scope.partition(":")
+    if (not separator or scope_type not in {"vendor", "user", "order"}
+            or not recipient_id or len(recipient_id) > 128):
+        raise HTTPException(status_code=400, detail="A specific vendor, user, or order scope is required.")
+
+    async def event_generator():
+        q = await notify_service.subscribe(scope)
+        try:
+            yield f"data: {json.dumps({'type': 'connected', 'scope': scope})}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(q.get(), timeout=15.0)
+                    yield f"data: {json.dumps(event)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        finally:
+            await notify_service.unsubscribe(scope, q)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache",
+                                      "X-Accel-Buffering": "no"})
 
 
 @app.post("/api/voice/transcribe")

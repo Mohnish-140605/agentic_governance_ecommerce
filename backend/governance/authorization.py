@@ -15,6 +15,7 @@ PERMISSIONS = {
         ActionType.UPDATE_INVENTORY: False,
         ActionType.UPDATE_PRICE: False,
         ActionType.CREATE_PROMOTION: False,
+        ActionType.CREATE_LISTING: False,
         ActionType.SETTLE_PAYMENT: False,
         ActionType.INITIATE_REFUND: False,
     },
@@ -25,6 +26,7 @@ PERMISSIONS = {
         ActionType.UPDATE_INVENTORY: True,
         ActionType.UPDATE_PRICE: True,
         ActionType.CREATE_PROMOTION: True,
+        ActionType.CREATE_LISTING: True,
         ActionType.SETTLE_PAYMENT: False,
         ActionType.INITIATE_REFUND: False,
     },
@@ -35,6 +37,7 @@ PERMISSIONS = {
         ActionType.UPDATE_INVENTORY: True,
         ActionType.UPDATE_PRICE: True,
         ActionType.CREATE_PROMOTION: True,
+        ActionType.CREATE_LISTING: True,
         ActionType.SETTLE_PAYMENT: True,
         ActionType.INITIATE_REFUND: True,
     }

@@ -104,7 +104,8 @@ export default function Screen2_Chat({
   initialPrompt = '',
   currentUser,
   currentLocation: _currentLocation,
-  rules
+  rules,
+  onGuardrailInfo
 }) {
   const userName = currentUser ? currentUser.name.split(' ')[0] : 'Priya';
   const processedPromptRef = useRef(initialPrompt);
@@ -307,6 +308,17 @@ export default function Screen2_Chat({
     setSelectedProduct(product);
     setAriaState(ARIA_STATES.GOVERNANCE_CHECK);
     setIsTyping(true);
+
+    if (product.price > (rules?.monthlyCap || 50000)) {
+      onGuardrailInfo?.({
+        name: product.name,
+        price: product.price,
+        merchant: product.merchant || 'Verified merchant',
+        monthlyCap: rules?.monthlyCap || 50000,
+        shopperId: `${userName} (#CRN-8821)`,
+        ticketRef: `CRN-${Math.floor(10000 + Math.random() * 90000)}-HLD`
+      });
+    }
 
     setTimeout(() => {
       setIsTyping(false);
@@ -987,14 +999,16 @@ export default function Screen2_Chat({
       </div>
 
       {/* Voice Input Modal */}
-      <VoiceModal
-        isOpen={voiceModalOpen}
-        onClose={() => setVoiceModalOpen(false)}
-        onTranscriptComplete={(text) => {
-          setInputVal(text);
-          setVoiceModalOpen(false);
-        }}
-      />
+      {voiceModalOpen && (
+        <VoiceModal
+          isOpen={voiceModalOpen}
+          onClose={() => setVoiceModalOpen(false)}
+          onTranscriptComplete={(text) => {
+            setInputVal(text);
+            setVoiceModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

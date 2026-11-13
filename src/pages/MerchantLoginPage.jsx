@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Store, BarChart3, Layers,
-  Lock, Zap, CheckCircle2, TrendingUp, Package
+  Lock, Zap, TrendingUp, Package
 } from 'lucide-react';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 
@@ -55,9 +55,9 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { label: 'Active Merchants', value: '2,400+' },
-  { label: 'Avg. Monthly Revenue', value: '₹84K' },
-  { label: 'Products Verified', value: '18K+' },
+  { label: 'Workflow', value: 'Propose → review' },
+  { label: 'Seller verification', value: 'Not connected' },
+  { label: 'Payments & delivery', value: 'Not connected' },
 ];
 
 export default function MerchantLoginPage({ onBack, onSignIn }) {
@@ -204,12 +204,12 @@ export default function MerchantLoginPage({ onBack, onSignIn }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             gap: '16px', flexWrap: 'wrap'
           }}>
-            {['OAuth 2.0 Secured', 'Merchant Verified', 'Data Encrypted'].map((badge, i) => (
+            {['Google OAuth setup required', 'Demo account available', 'Merchant verification not connected'].map((badge, i) => (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: '5px',
-                fontSize: '11.5px', color: GREEN, fontWeight: 600
+                fontSize: '11.5px', color: 'var(--ink-secondary)', fontWeight: 600
               }}>
-                <CheckCircle2 size={12} />
+                <span aria-hidden="true">•</span>
                 {badge}
               </div>
             ))}

@@ -123,6 +123,40 @@ def test_least_privilege_unauthorized_action(gov_engine):
     assert "Least Privilege" in result.reason_text
     assert result.execution_permitted is False
 
+def test_merchant_listing_uses_authorization_without_buyer_spending_caps(gov_engine):
+    proposal = ActionProposal(
+        agent_id="merchant_rep_09",
+        agent_role=AgentRole.MERCHANT_AGENT,
+        action_type=ActionType.CREATE_LISTING,
+        product_id="SKU-HANDMADE-001",
+        product_name="Handmade Walnut Cabinet",
+        requested_price=250000.0
+    )
+
+    result = gov_engine.evaluate(proposal)
+
+    assert result.decision == GovernanceDecision.AUTO_EXECUTE
+    assert result.execution_permitted is True
+    assert result.conflict.has_conflict is False
+    assert result.evidence["buyer_spending_policy_applied"] is False
+    assert len(result.audit_hash) == 64
+
+def test_buyer_cannot_create_merchant_listing(gov_engine):
+    proposal = ActionProposal(
+        agent_id="buyer_aria_01",
+        agent_role=AgentRole.BUYER_AGENT,
+        action_type=ActionType.CREATE_LISTING,
+        product_id="SKU-HANDMADE-001",
+        product_name="Handmade Walnut Cabinet",
+        requested_price=2500.0
+    )
+
+    result = gov_engine.evaluate(proposal)
+
+    assert result.decision == GovernanceDecision.BLOCK
+    assert result.reason_code == "GOV-BLOCK-UNAUTHORIZED"
+    assert result.execution_permitted is False
+
 def test_sla_latency_guarantee(gov_engine):
     """
     Evaluates 50 sequential rule decisions and verifies 95% latency is well below 500ms.

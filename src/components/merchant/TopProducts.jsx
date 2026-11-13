@@ -1,63 +1,10 @@
 import React from 'react';
-import {
-  TrendingUp,
-  Package,
-  ArrowRight
-} from 'lucide-react';
+import { ArrowRight, Package } from 'lucide-react';
 
-const TOP_PRODUCTS = [
-  {
-    id: 'prod-1',
-    name: 'Kinto Slow Coffee Brewer',
-    sku: 'SKU-7729',
-    sales: 45,
-    revenue: 155250,
-    image: '/assets/kinto_coffee.jpg',
-    trend: 'up'
-  },
-  {
-    id: 'prod-2',
-    name: 'Framework Laptop 13',
-    sku: 'SKU-8190',
-    sales: 32,
-    revenue: 3039680,
-    image: '/assets/framework_laptop.jpg',
-    trend: 'up'
-  },
-  {
-    id: 'prod-3',
-    name: 'Tekla Percale Bedding',
-    sku: 'SKU-9912',
-    sales: 28,
-    revenue: 313600,
-    image: '/assets/tekla_bedding.jpg',
-    trend: 'stable'
-  },
-  {
-    id: 'prod-4',
-    name: 'Minimal Ceramic Mug',
-    sku: 'SKU-7730',
-    sales: 24,
-    revenue: 43200,
-    image: '/assets/kinto_coffee.jpg',
-    trend: 'up'
-  },
-  {
-    id: 'prod-5',
-    name: 'Walnut Monitor Shelf',
-    sku: 'SKU-8191',
-    sales: 18,
-    revenue: 261000,
-    image: '/assets/framework_laptop.jpg',
-    trend: 'down'
-  }
-];
-
-export default function TopProducts({ products = null, onViewAll }) {
-  const displayProducts = products || TOP_PRODUCTS;
-
+export default function TopProducts({ products = [], isAvailable = true, onViewAll }) {
   return (
     <div style={{
+      minWidth: 0,
       backgroundColor: '#FFFFFF',
       border: '1px solid var(--border-cream)',
       borderRadius: '16px',
@@ -67,6 +14,7 @@ export default function TopProducts({ products = null, onViewAll }) {
       <div style={{
         display: 'flex',
         alignItems: 'center',
+        minWidth: 0,
         justifyContent: 'space-between',
         marginBottom: '20px'
       }}>
@@ -78,10 +26,10 @@ export default function TopProducts({ products = null, onViewAll }) {
             color: 'var(--ink)',
             marginBottom: '4px'
           }}>
-            Top Performing Products
+            Merchant catalog
           </h3>
           <p style={{ fontSize: '13px', color: 'var(--ink-muted)' }}>
-            Best sellers this month
+            Current listings and stock
           </p>
         </div>
         <button
@@ -101,14 +49,14 @@ export default function TopProducts({ products = null, onViewAll }) {
             transition: 'all 0.15s ease'
           }}
         >
-          View all
+          Add listing
           <ArrowRight size={12} />
         </button>
       </div>
 
       {/* Products List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {displayProducts.map((product, index) => (
+        {products.length > 0 ? products.map((product, index) => (
           <div
             key={product.id}
             style={{
@@ -127,7 +75,7 @@ export default function TopProducts({ products = null, onViewAll }) {
               width: '28px',
               height: '28px',
               borderRadius: '8px',
-              backgroundColor: index < 3 ? 'var(--forest-green)' : 'var(--bg-cream-subtle)',
+              backgroundColor: index < 3 ? 'var(--forest-green)' : '#FFFFFF',
               color: index < 3 ? '#FFFFFF' : 'var(--ink-muted)',
               display: 'flex',
               alignItems: 'center',
@@ -149,19 +97,28 @@ export default function TopProducts({ products = null, onViewAll }) {
               border: '1px solid var(--border-cream)',
               flexShrink: 0
             }}>
-              <img
-                src={product.image}
-                alt={product.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover'
-                }}
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.parentElement.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--forest-green-light);color:var(--forest-green);font-size:18px;font-weight:700;">' + product.name.charAt(0) + '</div>';
-                }}
-              />
+              {product.image && (
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(event) => {
+                    event.currentTarget.style.display = 'none';
+                    event.currentTarget.nextElementSibling.style.display = 'flex';
+                  }}
+                />
+              )}
+              <div style={{
+                display: product.image ? 'none' : 'flex',
+                width: '100%',
+                height: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--forest-green-light)',
+                color: 'var(--forest-green)'
+              }}>
+                <Package size={20} />
+              </div>
             </div>
 
             {/* Product Info */}
@@ -194,37 +151,24 @@ export default function TopProducts({ products = null, onViewAll }) {
                 color: 'var(--ink)',
                 marginBottom: '2px'
               }}>
-                {product.sales} sales
+                {product.stock} in stock
               </div>
               <div style={{
                 fontSize: '11px',
                 color: 'var(--ink-muted)'
               }}>
-                ₹{product.revenue.toLocaleString('en-IN')}
+                ₹{product.price.toLocaleString('en-IN')}
               </div>
             </div>
 
-            {/* Trend */}
-            <div style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: '6px',
-              backgroundColor: product.trend === 'up' ? '#EAF7EE' : product.trend === 'down' ? '#FEE2E2' : 'var(--bg-cream-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              <TrendingUp
-                size={14}
-                color={product.trend === 'up' ? '#166534' : product.trend === 'down' ? '#B91C1C' : 'var(--ink-muted)'}
-                style={{
-                  transform: product.trend === 'down' ? 'rotate(180deg)' : 'none'
-                }}
-              />
-            </div>
           </div>
-        ))}
+        )) : (
+          <div style={{ padding: '22px 12px', textAlign: 'center', color: 'var(--ink-muted)', fontSize: '13px' }}>
+            {isAvailable
+              ? 'No listings are recorded in the merchant catalog yet.'
+              : 'Listing data is unavailable from the backend.'}
+          </div>
+        )}
       </div>
     </div>
   );

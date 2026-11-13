@@ -2,17 +2,21 @@ import React from 'react';
 
 export default function CairnLogo({ size = 'default', showWordmark = true, onClick }) {
   const isLarge = size === 'large';
+  const Wrapper = onClick ? 'button' : 'div';
   
   return (
-    <div 
+    <Wrapper
       className="cairn-logo-wrapper"
+      type={onClick ? 'button' : undefined}
+      aria-label={onClick ? 'Cairn home' : undefined}
       onClick={onClick}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: isLarge ? '14px' : '10px',
         cursor: onClick ? 'pointer' : 'default',
-        userSelect: 'none'
+        userSelect: 'none',
+        ...(onClick ? { border: 'none', background: 'transparent', padding: 0 } : {})
       }}
     >
       {/* Zen Stone Cairn Icon */}
@@ -22,6 +26,7 @@ export default function CairnLogo({ size = 'default', showWordmark = true, onCli
         viewBox="0 0 64 64" 
         fill="none" 
         xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
         style={{ flexShrink: 0 }}
       >
         {/* Bottom smooth base stone */}
@@ -48,6 +53,6 @@ export default function CairnLogo({ size = 'default', showWordmark = true, onCli
           cairn
         </span>
       )}
-    </div>
+    </Wrapper>
   );
 }
