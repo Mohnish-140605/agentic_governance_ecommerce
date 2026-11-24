@@ -31,10 +31,9 @@ export default function CommandPalette({
 
   if (!isOpen) return null;
 
-  // Filter screens according to role to prevent role leakage
-  const isMerchantSearch = query.toLowerCase().includes('seller') || query.toLowerCase().includes('merchant');
+  // Filter screens strictly according to role to prevent role leakage
   const roleScreens = dashboardMode === 'customer'
-    ? (isMerchantSearch ? [...CUSTOMER_NAV_SCREENS, ...SELLER_NAV_SCREENS] : CUSTOMER_NAV_SCREENS)
+    ? CUSTOMER_NAV_SCREENS
     : SELLER_NAV_SCREENS;
 
   const allProducts = [...PICKED_PRODUCTS, ...ALTERNATIVE_PRODUCTS];

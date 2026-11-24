@@ -66,20 +66,6 @@ export default function Footer({
               >
                 My Safeguards
               </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<Store size={14} />}
-                iconPosition="left"
-                onClick={() => {
-                  if (setDashboardMode) setDashboardMode('seller');
-                  onNavigateToScreen('seller_hub');
-                }}
-                style={{ color: 'var(--forest-green)', fontWeight: 600 }}
-              >
-                Artisan Studio (Sell) →
-              </Button>
             </>
           ) : (
             <>

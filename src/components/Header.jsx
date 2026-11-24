@@ -460,38 +460,7 @@ export default function Header({
                       </button>
                     )}
 
-                    {dashboardMode === 'customer' ? (
-                      <button
-                        type="button"
-                        className="header-menu-action"
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          setDashboardMode('seller');
-                          setActiveScreen('seller_hub');
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          fontSize: '13px',
-                          color: 'var(--forest-green)',
-                          fontWeight: 600,
-                          border: 'none',
-                          background: 'none',
-                          borderRadius: '10px',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'background 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--forest-green-light)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                      >
-                        <Store size={15} />
-                        <span>Merchant Studio (Seller)</span>
-                      </button>
-                    ) : (
+                    {dashboardMode === 'seller' && (
                       <button
                         type="button"
                         className="header-menu-action"
@@ -704,37 +673,7 @@ export default function Header({
               </button>
             );
           })}
-          {dashboardMode === 'customer' && (
-            <button
-              type="button"
-              className="header-nav-item header-merchant-nav-item"
-              onClick={() => {
-                setDashboardMode('seller');
-                setActiveScreen('seller_hub');
-              }}
-              style={{
-                marginLeft: 'auto',
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-pill)',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: 'var(--forest-green)',
-                backgroundColor: 'var(--forest-green-light)',
-                border: '1px solid var(--forest-green-border)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#D1E7DD'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--forest-green-light)'}
-            >
-              <Briefcase size={13} />
-              <span>Merchant Studio</span>
-            </button>
-          )}
+          {/* Merchant Studio button removed — buyers cannot access merchant portal */}
           {dashboardMode === 'seller' && (
             <div style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--forest-green)', fontWeight: 600, paddingRight: '6px' }}>
               Merchant Checkpoint
@@ -752,36 +691,8 @@ export default function Header({
           flexDirection: 'column',
           gap: '8px'
         }}>
-          {dashboardMode === 'customer' ? (
-            <button
-              type="button"
-              className="header-mobile-nav-item"
-              onClick={() => {
-                setDashboardMode('seller');
-                setActiveScreen('seller_hub');
-                setMobileMenuOpen(false);
-              }}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--forest-green-light)',
-                color: 'var(--forest-green)',
-                fontSize: '13px',
-                fontWeight: 600,
-                border: '1px solid var(--forest-green-border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                marginBottom: '8px'
-              }}
-            >
-              <Store size={15} />
-              <span>Open Merchant Studio →</span>
-            </button>
-          ) : (
+          {/* Mobile merchant toggle: only show "Return to Store" when already in seller mode */}
+          {dashboardMode === 'seller' && (
             <button
               type="button"
               className="header-mobile-nav-item"

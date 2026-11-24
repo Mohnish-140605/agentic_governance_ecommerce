@@ -331,6 +331,13 @@ export default function App() {
   // ── Screen-role auto-synchronization ──────────────────────────────────
   const handleNavigateToScreen = (screenId) => {
     const isSeller = ['seller_hub', 'store_health', 'seller_orders'].includes(screenId);
+
+    // Strict Role Separation: Buyers cannot access merchant/seller screens
+    if (isSeller && currentUser?.role !== 'merchant') {
+      showToast('Access restricted: Merchant portal requires a Merchant account.');
+      return;
+    }
+
     const role = isSeller ? 'merchant' : 'buyer';
     const session = loadSession(role);
 
@@ -470,7 +477,11 @@ export default function App() {
         activeScreen={activeScreen}
         setActiveScreen={handleNavigateToScreen}
         dashboardMode={dashboardMode}
-        setDashboardMode={(mode) => handleNavigateToScreen(mode === 'seller' ? 'seller_hub' : 'explore')}
+        setDashboardMode={(mode) => {
+          // Role guard: only merchants can switch to seller mode
+          if (mode === 'seller' && currentUser?.role !== 'merchant') return;
+          handleNavigateToScreen(mode === 'seller' ? 'seller_hub' : 'explore');
+        }}
         currentUser={currentUser}
         currentLocation={currentLocation}
         onOpenSearch={() => setCommandPaletteOpen(true)}
@@ -676,7 +687,11 @@ export default function App() {
       <Footer
         onNavigateToScreen={handleNavigateToScreen}
         dashboardMode={dashboardMode}
-        setDashboardMode={(mode) => handleNavigateToScreen(mode === 'seller' ? 'seller_hub' : 'explore')}
+        setDashboardMode={(mode) => {
+          // Role guard: only merchants can switch to seller mode
+          if (mode === 'seller' && currentUser?.role !== 'merchant') return;
+          handleNavigateToScreen(mode === 'seller' ? 'seller_hub' : 'explore');
+        }}
       />
     </div>
   );
