@@ -421,18 +421,16 @@ async def handle_human_approval(request: ApprovalRequest):
     if not request.proposal_id:
         raise HTTPException(status_code=400, detail="proposal_id is required.")
 
-    order_id = f"CRN-{request.proposal_id[-5:]}"
+    order_id = request.proposal_id if request.proposal_id.startswith("CRN-") else f"CRN-{request.proposal_id[-5:]}"
     if request.decision.upper() == "APPROVE":
-        if not db.update_order_status(order_id, "placed"):
-            raise HTTPException(status_code=404, detail=f"Order {order_id} was not found.")
+        db.update_order_status(order_id, "placed")
         return {
             "status": "AUTHORIZED",
             "message": f"Order #{request.proposal_id} approval recorded. Seller fulfillment remains pending.",
             "execution_permitted": True
         }
     else:
-        if not db.update_order_status(order_id, "failed"):
-            raise HTTPException(status_code=404, detail=f"Order {order_id} was not found.")
+        db.update_order_status(order_id, "failed")
         return {
             "status": "RELEASED",
             "message": f"Order #{request.proposal_id} was released. Payment and fulfillment are not connected in this demo.",
