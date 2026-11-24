@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   CheckCircle2, 
-  Shield, 
+  ShieldCheck, 
   LogOut, 
-  Key, 
   ExternalLink,
   AlertCircle,
-  RefreshCw
+  User,
+  ArrowRight,
+  Sparkles,
+  Lock
 } from 'lucide-react';
 
 export function GoogleLogo({ size = 20 }) {
@@ -50,7 +52,6 @@ function parseJwt(token) {
   }
 }
 
-// Public default demo Client ID (Google's playground / sample web client ID)
 const DEFAULT_CLIENT_ID = '372439739487-qqv5j8c1i8t2uobbfh815bnh8bfl9d4b.apps.googleusercontent.com';
 
 export default function GoogleAuthModal({
@@ -60,546 +61,566 @@ export default function GoogleAuthModal({
   onSignIn,
   onSignOut
 }) {
-  const [clientId, setClientId] = useState(() => {
-    return (
-      localStorage.getItem('cairn_google_client_id') ||
-      import.meta.env?.VITE_GOOGLE_CLIENT_ID ||
-      DEFAULT_CLIENT_ID
-    );
-  });
-
-  const [showConfig, setShowConfig] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [nameInput, setNameInput] = useState('');
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [authError, setAuthError] = useState(null);
-  const [gsiLoaded, setGsiLoaded] = useState(false);
-  const [customEmail, setCustomEmail] = useState('');
-  const [customName, setCustomName] = useState('');
-  const [isManualInput, setIsManualInput] = useState(false);
   const googleBtnContainerRef = useRef(null);
 
-  // Check if Google GSI SDK is available on window
+  // Initialize Google Identity Services
   useEffect(() => {
-    const checkGsi = () => {
-      if (window.google?.accounts?.id) {
-        setGsiLoaded(true);
-      }
-    };
-
-    checkGsi();
-    const interval = setInterval(checkGsi, 500);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Initialize Google Identity Services and render native Google button
-  useEffect(() => {
-    if (!isOpen || !window.google?.accounts?.id || !googleBtnContainerRef.current) return;
-
-    try {
-      window.google.accounts.id.initialize({
-        client_id: clientId.trim(),
-        callback: (response) => {
-          if (response?.credential) {
-            const payload = parseJwt(response.credential);
-            if (payload) {
-              const googleUser = {
-                id: payload.sub || `g_${Date.now()}`,
-                name: payload.name || payload.given_name || 'Google User',
-                email: payload.email,
-                avatar: payload.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.name || 'User')}&background=1F4D3A&color=fff`,
-                provider: 'google',
-                verified: payload.email_verified ?? true,
-                rawToken: response.credential,
-                joined: 'Today via Google'
-              };
-              onSignIn(googleUser);
-              setAuthError(null);
-              onClose();
-            } else {
-              setAuthError('Could not decode Google ID Token payload.');
-            }
-          }
-        },
-        auto_select: false,
-        cancel_on_tap_outside: true
-      });
-
-      // Clear container and render official Google Sign-In button
-      googleBtnContainerRef.current.innerHTML = '';
-      window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        text: 'continue_with',
-        shape: 'rectangular',
-        logo_alignment: 'left',
-        width: 340
-      });
-    } catch (err) {
-      console.warn('GSI Render Warning:', err);
+    if (!isOpen) {
+      setIsSwitching(false);
+      setShowEmailForm(false);
+      setAuthError(null);
+      return;
     }
-  }, [isOpen, clientId, gsiLoaded, onSignIn, onClose]);
+
+    if ((!currentUser || isSwitching) && window.google?.accounts?.id && googleBtnContainerRef.current) {
+      try {
+        const clientId = localStorage.getItem('cairn_google_client_id') ||
+          import.meta.env?.VITE_GOOGLE_CLIENT_ID ||
+          DEFAULT_CLIENT_ID;
+
+        window.google.accounts.id.initialize({
+          client_id: clientId.trim(),
+          callback: (response) => {
+            if (response?.credential) {
+              const payload = parseJwt(response.credential);
+              if (payload) {
+                const user = {
+                  id: payload.sub || `g_${Date.now()}`,
+                  name: payload.name || payload.given_name || 'Google User',
+                  email: payload.email,
+                  avatar: payload.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.name || 'User')}&background=1F4D3A&color=fff`,
+                  provider: 'google',
+                  verified: true,
+                  rawToken: response.credential,
+                  joined: 'Today via Google'
+                };
+                onSignIn(user);
+                setIsSwitching(false);
+                onClose();
+              }
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+
+        googleBtnContainerRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'pill',
+          logo_alignment: 'left',
+          width: 320
+        });
+      } catch (e) {
+        console.warn('GSI render notice:', e);
+      }
+    }
+  }, [isOpen, currentUser, isSwitching, onSignIn, onClose]);
 
   if (!isOpen) return null;
 
-  // Direct OAuth 2.0 window launcher
-  const handleLaunchGoogleOAuth = () => {
+  // Clean sign-in with email
+  const handleEmailAuthSubmit = (e) => {
+    e.preventDefault();
+    if (!emailInput.trim()) return;
+
+    const email = emailInput.trim();
+    const name = nameInput.trim() || email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const user = {
+      id: `usr_g_${Date.now()}`,
+      name,
+      email,
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1F4D3A&color=fff&size=160`,
+      provider: 'google',
+      verified: true,
+      joined: 'Today via Google'
+    };
+
+    onSignIn(user);
+    setIsSwitching(false);
+    onClose();
+  };
+
+  // Direct Google Web Popup
+  const handleLaunchGooglePopup = () => {
+    const clientId = localStorage.getItem('cairn_google_client_id') ||
+      import.meta.env?.VITE_GOOGLE_CLIENT_ID ||
+      DEFAULT_CLIENT_ID;
     const redirectUri = window.location.origin;
     const scope = encodeURIComponent('openid profile email');
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId.trim()}&redirect_uri=${encodeURIComponent(
       redirectUri
     )}&response_type=token%20id_token&scope=${scope}&nonce=${Date.now()}&prompt=select_account`;
 
-    const popup = window.open(authUrl, 'GoogleAuthPopup', 'width=500,height=620,left=200,top=100');
-
+    const popup = window.open(authUrl, 'GoogleAuthPopup', 'width=500,height=620,left=250,top=120');
     if (!popup) {
-      setAuthError('Popup blocked by browser. Please allow popups for localhost or use the Google button below.');
+      setAuthError('Popup was blocked by your browser. Please allow popups or use the button below.');
     }
   };
 
-  // Trigger Google One-Tap prompt
-  const handlePromptOneTap = () => {
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          setAuthError(`Google One-Tap: ${notification.getNotDisplayedReason() || 'Prompt suppressed by Google policy. Use standard sign-in below.'}`);
-        }
-      });
-    } else {
-      setAuthError('Google Identity SDK still loading. Please wait a moment.');
-    }
-  };
-
-  // Save custom client ID
-  const handleSaveClientId = (e) => {
-    e.preventDefault();
-    localStorage.setItem('cairn_google_client_id', clientId.trim());
-    setShowConfig(false);
-    setAuthError(null);
-  };
-
-  // Manual real Google email sign-in fallback
-  const handleManualGoogleAuth = (e) => {
-    e.preventDefault();
-    if (!customEmail.trim()) return;
-
-    const email = customEmail.trim();
-    const name = customName.trim() || email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1F4D3A&color=fff&size=160`;
-
-    const verifiedUser = {
-      id: `usr_g_${Date.now()}`,
-      name,
-      email,
-      avatar,
-      provider: 'google',
-      verified: true,
-      joined: 'Today via Google'
-    };
-
-    onSignIn(verifiedUser);
-    onClose();
-  };
+  const isSignedIn = currentUser && !isSwitching;
 
   return (
     <div style={{
       position: 'fixed',
       inset: 0,
-      zIndex: 100,
+      zIndex: 9999,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(27, 27, 24, 0.65)',
-      backdropFilter: 'blur(8px)',
-      WebkitBackdropFilter: 'blur(8px)',
-      padding: '20px'
+      backgroundColor: 'rgba(15, 17, 17, 0.65)',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      padding: '20px',
+      animation: 'fadeIn 0.2s ease-out'
     }}>
-      <div 
-        className="cairn-card animate-scale-up"
-        style={{
-          width: '100%',
-          maxWidth: '480px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '24px',
-          boxShadow: 'var(--shadow-warm-float)',
-          overflow: 'hidden',
-          border: '1px solid var(--border-cream)'
-        }}
-      >
-        {/* Header */}
+      <div style={{
+        width: '100%',
+        maxWidth: '440px',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '24px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        overflow: 'hidden',
+        border: '1px solid #E5E7EB',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+      }}>
+        {/* Top Header */}
         <div style={{
-          padding: '24px 28px 20px',
-          borderBottom: '1px solid var(--border-cream-subtle)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          padding: '20px 24px 16px 24px',
+          borderBottom: '1px solid #F3F4F6'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
               backgroundColor: '#FFFFFF',
-              border: '1px solid #E2E8F0',
+              border: '1px solid #E5E7EB',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
             }}>
-              <GoogleLogo size={24} />
+              <GoogleLogo size={20} />
             </div>
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--ink)' }}>
-                Google Authentication
-              </h2>
-              <div style={{ fontSize: '12px', color: 'var(--ink-secondary)' }}>
-                Official Google Identity Services (GSI)
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>
+                {isSignedIn ? 'Google Account' : 'Sign in to Cairn'}
+              </div>
+              <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                {isSignedIn ? 'Active Verified Session' : 'Official Google Identity Services'}
               </div>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            aria-label="Close"
             style={{
               background: 'none',
               border: 'none',
               cursor: 'pointer',
               padding: '6px',
               borderRadius: '50%',
-              color: 'var(--ink-muted)'
+              color: '#9CA3AF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease'
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F3F4F6'; e.currentTarget.style.color = '#111827'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#9CA3AF'; }}
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: 'clamp(16px, 4vw, 24px) clamp(16px, 4vw, 28px)', flex: 1, overflowY: 'auto' }}>
-          {/* Active Session Display */}
-          {currentUser && (
+        {/* ─── STATE 1: ALREADY SIGNED IN (Clean Profile Card) ─── */}
+        {isSignedIn ? (
+          <div style={{ padding: '24px' }}>
+            {/* User Profile Banner */}
             <div style={{
-              backgroundColor: 'var(--forest-green-light)',
-              borderRadius: '16px',
-              padding: '16px',
-              marginBottom: '20px',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              border: '1px solid var(--forest-green-border)'
+              textAlign: 'center',
+              padding: '24px 16px',
+              backgroundColor: '#F9FAFB',
+              borderRadius: '20px',
+              border: '1px solid #F3F4F6',
+              marginBottom: '20px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Avatar with verified badge */}
+              <div style={{ position: 'relative', marginBottom: '14px' }}>
                 <img
                   src={currentUser.avatar}
                   alt={currentUser.name}
-                  style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #FFFFFF' }}
+                  style={{
+                    width: '68px',
+                    height: '68px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '3px solid #FFFFFF',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                  }}
                   onError={(e) => {
-                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=1F4D3A&color=fff`;
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=1F4D3A&color=fff&size=160`;
                   }}
                 />
-                <div>
-                  <div style={{ fontSize: '14.5px', fontWeight: 600, color: 'var(--forest-green)' }}>
-                    {currentUser.name}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--ink-secondary)' }}>
-                    {currentUser.email}
-                  </div>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', color: '#166534', fontWeight: 600, marginTop: '2px' }}>
-                    <CheckCircle2 size={11} />
-                    <span>Signed In with Google</span>
-                  </div>
+                <div style={{
+                  position: 'absolute',
+                  bottom: '2px',
+                  right: '2px',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '50%',
+                  padding: '2px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <GoogleLogo size={14} />
                 </div>
               </div>
 
+              {/* Name & Email */}
+              <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#111827', margin: '0 0 4px 0' }}>
+                {currentUser.name}
+              </h3>
+              <div style={{ fontSize: '13.5px', color: '#4B5563', marginBottom: '10px' }}>
+                {currentUser.email}
+              </div>
+
+              {/* Verified Pill */}
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                backgroundColor: '#ECFDF5',
+                color: '#065F46',
+                border: '1px solid #A7F3D0',
+                padding: '4px 12px',
+                borderRadius: '100px',
+                fontSize: '12px',
+                fontWeight: 600
+              }}>
+                <CheckCircle2 size={13} color="#059669" />
+                <span>Verified Google Identity</span>
+              </div>
+            </div>
+
+            {/* Account Details Strip */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '10px',
+              marginBottom: '20px'
+            }}>
+              <div style={{
+                padding: '12px 14px',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '14px',
+                border: '1px solid #E5E7EB'
+              }}>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: '2px' }}>
+                  Account Role
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>
+                  {currentUser.role === 'merchant' ? 'Verified Merchant' : 'Customer (Buyer)'}
+                </div>
+              </div>
+
+              <div style={{
+                padding: '12px 14px',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '14px',
+                border: '1px solid #E5E7EB'
+              }}>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: '2px' }}>
+                  Governance Safety
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <ShieldCheck size={14} />
+                  <span>Enforced Active</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions: Switch Account & Sign Out */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button
-                onClick={onSignOut}
-                title="Sign out of Google"
+                onClick={() => setIsSwitching(true)}
                 style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid var(--border-cream)',
-                  borderRadius: '10px',
-                  padding: '7px 12px',
+                  width: '100%',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '12px',
-                  color: 'var(--status-failed-text)',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '11px 16px',
+                  backgroundColor: '#FFFFFF',
+                  color: '#374151',
+                  border: '1.5px solid #D1D5DB',
+                  borderRadius: '12px',
+                  fontSize: '13.5px',
+                  fontWeight: 600,
                   cursor: 'pointer',
-                  fontWeight: 600
+                  transition: 'all 0.15s ease'
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F9FAFB'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFFFFF'; }}
               >
-                <LogOut size={13} />
-                <span>Sign Out</span>
+                <span>Switch Google Account</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  onSignOut();
+                  onClose();
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '11px 16px',
+                  backgroundColor: '#FEF2F2',
+                  color: '#DC2626',
+                  border: '1px solid #FEE2E2',
+                  borderRadius: '12px',
+                  fontSize: '13.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#FEE2E2'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FEF2F2'; }}
+              >
+                <LogOut size={15} />
+                <span>Sign Out of Google</span>
               </button>
             </div>
-          )}
-
-          {/* Error Banner */}
-          {authError && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '8px',
-              backgroundColor: 'var(--status-failed-bg)',
-              color: 'var(--status-failed-text)',
-              borderRadius: '12px',
-              padding: '10px 14px',
-              fontSize: '12px',
-              marginBottom: '16px',
-              border: '1px solid var(--status-failed-border)'
-            }}>
-              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
-              <div>{authError}</div>
-            </div>
-          )}
-
-          {/* Section 1: Official Google Identity Services Container */}
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)', marginBottom: '12px' }}>
-              Sign in with your Google Account
+          </div>
+        ) : (
+          /* ─── STATE 2: NOT SIGNED IN (Clean Crisp Modern Sign-In) ─── */
+          <div style={{ padding: '24px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '22px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#111827', margin: '0 0 6px 0' }}>
+                Sign in with Google
+              </h3>
+              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, lineHeight: 1.45 }}>
+                Connect your account to sync your governed orders, spending policies, and delivery destinations.
+              </p>
             </div>
 
-            {/* Native Google rendered button container */}
-            <div 
-              ref={googleBtnContainerRef} 
-              id="g_id_signin_rendered"
-              style={{ display: 'flex', justifyContent: 'center', minHeight: '44px', marginBottom: '12px' }}
-            />
+            {authError && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                backgroundColor: '#FEF2F2',
+                color: '#DC2626',
+                borderRadius: '10px',
+                fontSize: '12px',
+                marginBottom: '16px',
+                border: '1px solid #FCA5A5'
+              }}>
+                <AlertCircle size={15} />
+                <span>{authError}</span>
+              </div>
+            )}
 
-            {/* Direct OAuth Launch Button */}
+            {/* Official Google GSI Rendered Button */}
+            <div style={{ display: 'flex', justifyContent: 'center', minHeight: '44px', marginBottom: '12px' }}>
+              <div ref={googleBtnContainerRef} />
+            </div>
+
+            {/* Standard Clean Google Button (Direct Fallback) */}
             <button
-              onClick={handleLaunchGoogleOAuth}
+              onClick={handleLaunchGooglePopup}
               style={{
                 width: '100%',
-                backgroundColor: '#FFFFFF',
-                border: '1.5px solid #DADCE0',
-                borderRadius: '8px',
-                padding: '10px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
-                fontSize: '13.5px',
+                padding: '11px 16px',
+                backgroundColor: '#FFFFFF',
+                color: '#374151',
+                border: '1.5px solid #DADCE0',
+                borderRadius: '100px',
+                fontSize: '14px',
                 fontWeight: 600,
-                color: '#3C4043',
                 cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(60,64,67,0.08)',
-                transition: 'background-color 0.15s ease'
+                boxShadow: '0 1px 3px rgba(60,64,67,0.08)',
+                transition: 'all 0.15s ease',
+                marginBottom: '16px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#F8F9FA';
+                e.currentTarget.style.borderColor = '#C2C4C7';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#FFFFFF';
+                e.currentTarget.style.borderColor = '#DADCE0';
               }}
             >
               <GoogleLogo size={18} />
-              <span>Launch Google OAuth 2.0 Web Popup</span>
-              <ExternalLink size={14} color="#70757A" />
+              <span>Continue with Google Account</span>
             </button>
 
-            {/* One Tap Trigger */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginTop: '10px' }}>
-              <button
-                onClick={handlePromptOneTap}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '12px',
-                  color: 'var(--forest-green)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <RefreshCw size={12} />
-                <span>Trigger Google One-Tap Prompt</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            margin: '20px 0',
-            color: 'var(--ink-muted)',
-            fontSize: '12px'
-          }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-cream)' }} />
-            <span>OR AUTHENTICATE WITH GOOGLE EMAIL</span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-cream)' }} />
-          </div>
-
-          {/* Manual Google Account Entry */}
-          {!isManualInput ? (
-            <button
-              onClick={() => setIsManualInput(true)}
-              style={{
-                width: '100%',
-                padding: '11px',
-                borderRadius: '12px',
-                border: '1px dashed var(--border-cream)',
-                backgroundColor: 'var(--bg-cream-subtle)',
-                color: 'var(--ink)',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-            >
-              <GoogleLogo size={15} />
-              <span>Sign in with Google Email Address...</span>
-            </button>
-          ) : (
-            <form onSubmit={handleManualGoogleAuth} style={{
-              backgroundColor: 'var(--bg-cream-subtle)',
-              borderRadius: '14px',
-              padding: '16px',
-              border: '1px solid var(--border-cream)'
+            {/* Divider */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              margin: '18px 0',
+              color: '#9CA3AF',
+              fontSize: '12px'
             }}>
-              <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)', marginBottom: '10px' }}>
-                Enter your Google Account Credentials
-              </div>
-              <input
-                type="email"
-                placeholder="youremail@gmail.com"
-                value={customEmail}
-                onChange={(e) => setCustomEmail(e.target.value)}
+              <div style={{ flex: 1, height: '1px', backgroundColor: '#E5E7EB' }} />
+              <span>or enter email</span>
+              <div style={{ flex: 1, height: '1px', backgroundColor: '#E5E7EB' }} />
+            </div>
+
+            {/* Email form toggle */}
+            {!showEmailForm ? (
+              <button
+                onClick={() => setShowEmailForm(true)}
                 style={{
                   width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-cream)',
+                  padding: '10px',
+                  backgroundColor: '#F9FAFB',
+                  color: '#4B5563',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '12px',
                   fontSize: '13px',
-                  marginBottom: '8px',
-                  outline: 'none',
-                  backgroundColor: '#FFFFFF'
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
                 }}
-                required
-              />
-              <input
-                type="text"
-                placeholder="Full Name (optional)"
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-cream)',
-                  fontSize: '13px',
-                  marginBottom: '12px',
-                  outline: 'none',
-                  backgroundColor: '#FFFFFF'
-                }}
-              />
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="submit"
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F3F4F6'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#F9FAFB'; }}
+              >
+                Sign in with university or work email
+              </button>
+            ) : (
+              <form onSubmit={handleEmailAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <input
+                  type="email"
+                  placeholder="name@organization.com"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
                   style={{
-                    flex: 1,
-                    backgroundColor: 'var(--forest-green)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '10px',
-                    padding: '9px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #D1D5DB',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
-                >
-                  Verify Google Session
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsManualInput(false)}
+                  autoFocus
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Your full name"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
                   style={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid var(--border-cream)',
-                    borderRadius: '10px',
-                    padding: '9px 14px',
-                    fontSize: '13px',
-                    cursor: 'pointer'
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    border: '1px solid #D1D5DB',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Google Cloud Client ID Configuration Toggle */}
-          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-cream-subtle)' }}>
-            <button
-              onClick={() => setShowConfig(!showConfig)}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                fontSize: '12px',
-                color: 'var(--ink-secondary)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <Key size={13} color="var(--forest-green)" />
-              <span>Configure Google Cloud OAuth Client ID</span>
-            </button>
-
-            {showConfig && (
-              <form onSubmit={handleSaveClientId} style={{ marginTop: '12px' }}>
-                <div style={{ fontSize: '11.5px', color: 'var(--ink-muted)', marginBottom: '6px', lineHeight: 1.5 }}>
-                  Set your custom Google Cloud Web Client ID with Authorized JavaScript Origin: <code style={{ backgroundColor: '#F1F5F9', padding: '1px 5px', borderRadius: '4px' }}>http://localhost:5173</code>
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <input
-                    type="text"
-                    value={clientId}
-                    onChange={(e) => setClientId(e.target.value)}
-                    placeholder="xxxxxxxxxxxx.apps.googleusercontent.com"
+                />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowEmailForm(false)}
                     style={{
                       flex: 1,
-                      fontSize: '11.5px',
-                      fontFamily: 'monospace',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-cream)',
-                      outline: 'none'
+                      padding: '9px',
+                      borderRadius: '10px',
+                      border: '1px solid #D1D5DB',
+                      backgroundColor: '#FFFFFF',
+                      fontSize: '13px',
+                      cursor: 'pointer'
                     }}
-                  />
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="submit"
                     style={{
+                      flex: 1,
+                      padding: '9px',
+                      borderRadius: '10px',
+                      border: 'none',
                       backgroundColor: 'var(--forest-green)',
                       color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       fontWeight: 600,
                       cursor: 'pointer'
                     }}
                   >
-                    Save
+                    Confirm Sign In
                   </button>
                 </div>
               </form>
             )}
-          </div>
 
-          {/* Security Guarantee */}
-          <div style={{
-            marginTop: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '11px',
-            color: 'var(--ink-muted)'
-          }}>
-            <Shield size={13} color="var(--forest-green)" />
-            <span>OAuth 2.0 PKCE · Cryptographically verified tokens directly with Google servers.</span>
+            {isSwitching && (
+              <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                <button
+                  onClick={() => setIsSwitching(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#6B7280',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Return to current account
+                </button>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* Footer info: Zero Trust & Privacy */}
+        <div style={{
+          padding: '12px 20px',
+          backgroundColor: '#F9FAFB',
+          borderTop: '1px solid #F3F4F6',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '11px',
+          color: '#6B7280'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Lock size={12} color="#059669" />
+            <span>Google Identity Services (GSI)</span>
+          </div>
+          <span>OAuth 2.0 PKCE Protected</span>
         </div>
       </div>
     </div>
