@@ -80,18 +80,6 @@ export default function Footer({
                 Store Health & Audit
               </Button>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={<ArrowLeft size={13} />}
-                iconPosition="left"
-                onClick={() => {
-                  if (setDashboardMode) setDashboardMode('customer');
-                  onNavigateToScreen('explore');
-                }}
-              >
-                Back to Customer Store
-              </Button>
             </>
           )}
         </div>

@@ -101,31 +101,6 @@ export default function Header({
                 <Store size={12} />
                 <span>MERCHANT STUDIO</span>
               </div>
-              <button
-                onClick={() => {
-                  setDashboardMode('customer');
-                  setActiveScreen('explore');
-                }}
-                title="Switch back to shopping as customer"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid var(--border-cream)',
-                  borderRadius: 'var(--radius-pill)',
-                  padding: '5px 12px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: 'var(--ink-secondary)',
-                  cursor: 'pointer',
-                  boxShadow: 'var(--shadow-warm-sm)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <ArrowLeft size={13} />
-                <span>Return to Store</span>
-              </button>
             </div>
           ) : (
             <span className="header-tagline-text" style={{
@@ -460,38 +435,7 @@ export default function Header({
                       </button>
                     )}
 
-                    {dashboardMode === 'seller' && (
-                      <button
-                        type="button"
-                        className="header-menu-action"
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          setDashboardMode('customer');
-                          setActiveScreen('explore');
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          fontSize: '13px',
-                          color: 'var(--forest-green)',
-                          fontWeight: 600,
-                          border: 'none',
-                          background: 'none',
-                          borderRadius: '10px',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'background 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--forest-green-light)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                      >
-                        <Sparkles size={15} />
-                        <span>Return to Customer Store</span>
-                      </button>
-                    )}
+
 
                     <button
                       type="button"
@@ -691,37 +635,7 @@ export default function Header({
           flexDirection: 'column',
           gap: '8px'
         }}>
-          {/* Mobile merchant toggle: only show "Return to Store" when already in seller mode */}
-          {dashboardMode === 'seller' && (
-            <button
-              type="button"
-              className="header-mobile-nav-item"
-              onClick={() => {
-                setDashboardMode('customer');
-                setActiveScreen('explore');
-                setMobileMenuOpen(false);
-              }}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: '10px',
-                backgroundColor: 'var(--bg-cream-subtle)',
-                color: 'var(--ink)',
-                fontSize: '13px',
-                fontWeight: 600,
-                border: '1px solid var(--border-cream)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                marginBottom: '8px'
-              }}
-            >
-              <ArrowLeft size={15} />
-              <span>Return to Customer Store</span>
-            </button>
-          )}
+
 
           {navItems.map((item) => (
             <button
