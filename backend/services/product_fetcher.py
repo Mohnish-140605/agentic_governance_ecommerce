@@ -59,6 +59,16 @@ class OnlineProductFetcher:
         clean_query = query.strip()
         results: List[Dict[str, Any]] = []
 
+        # If query is a conversational question or follow-up inquiry, do NOT synthesize a product
+        q_lower = clean_query.lower()
+        conversational_triggers = [
+            "why is", "why this", "why was", "why best", "best choice", "how come",
+            "what makes", "tell me more", "how does it", "how compare", "what are the specs",
+            "is it good", "is this good", "what about", "who is the seller", "explain"
+        ]
+        if any(trigger in q_lower for trigger in conversational_triggers):
+            return []
+
         # 1. Search Open E-commerce Catalog (Over 2,000 real items across electronics, home, living)
         try:
             encoded_query = urllib.parse.quote(clean_query)

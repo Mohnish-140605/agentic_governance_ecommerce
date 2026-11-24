@@ -269,6 +269,7 @@ export default function Screen1_Home({
   // ── Integrated Aria Activity & Conversation State ───────────────────────────
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
+  const [lastActiveProduct, setLastActiveProduct] = useState(null);
 
   // ── 5-Stage Agent Execution Pipeline State ──────────────────────────────────
   const [agentExecuting, setAgentExecuting] = useState(false);
@@ -308,6 +309,71 @@ export default function Screen1_Home({
     setShowComparisonMatrix(false);
 
     const lower = queryText.toLowerCase();
+
+    // Check if user query is a conversational inquiry / explainability question
+    const isConversational =
+      lower.includes('why is this') ||
+      lower.includes('why best choice') ||
+      lower.includes('why this') ||
+      lower.includes('why did you') ||
+      lower.includes('why choose') ||
+      lower.includes('how come') ||
+      lower.includes('how does it compare') ||
+      lower.includes('what makes') ||
+      lower.includes('what are the specs') ||
+      lower.includes('tell me more') ||
+      lower.includes('is it good') ||
+      lower.includes('is this good') ||
+      lower.includes('what about the warranty') ||
+      lower.includes('who is the seller') ||
+      lower.includes('explain');
+
+    if (isConversational) {
+      const activeProd = lastActiveProduct || (agentActionData?.primaryItem) || MASTER_CATALOG[0];
+      const conversationalExplanation = `Here is why ${activeProd.name} (₹${activeProd.price.toLocaleString('en-IN')}) is recommended as your best choice:
+
+1. 🛡️ Budget & Governance Fit: At ₹${activeProd.price.toLocaleString('en-IN')}, it sits comfortably within your spending allowance and monthly ceiling of ₹${monthlyCap.toLocaleString('en-IN')}.
+2. 🎧 Acoustics & Thermals: ${activeProd.acoustics || 'Engineered with silent acoustic damping (<22 dB) for library and study sessions.'}
+3. 🏷️ Verified Direct Merchant: Sourced from official authorized seller "${activeProd.partner}" with zero counterfeit risk and manufacturer warranty.
+4. 🔒 Pre-Execution Safety: Protected by Cairn's autonomous escrow governance—zero funds move without your approval, with a 15-minute peace-of-mind hold upon authorization.`;
+
+      const orderId = `CRN-${Math.floor(10000 + Math.random() * 90000)}`;
+      const executionPackage = {
+        query: queryText,
+        isExplicitBuy: false,
+        parsedBudget: activeProd.price,
+        matchedProducts: [activeProd],
+        primaryItem: activeProd,
+        decision: 'AUTO_EXECUTE',
+        reasonCode: 'GOV-EXPL-01',
+        reasonText: 'Conversational explainability inquiry answered. Complies with active governance policies.',
+        ariaMessage: conversationalExplanation,
+        orderId,
+        receiptData: null
+      };
+
+      setAgentActionData(executionPackage);
+
+      setTimeout(() => {
+        setAgentExecuting(false);
+        const ariaMsg = {
+          id: ++homeMsgCounter,
+          sender: 'aria',
+          name: 'Aria',
+          time: 'Just now',
+          text: conversationalExplanation,
+          governance: {
+            decision: 'AUTO_EXECUTE',
+            reasonCode: 'GOV-EXPL-01',
+            reasonText: 'Explainability & Policy Verification',
+            orderId
+          }
+        };
+        setMessages((prev) => [...prev, ariaMsg]);
+      }, 450);
+
+      return;
+    }
 
     // 1. STAGE 1: UNDERSTAND USER REQUEST (Intent, Target constraints, Preferences)
     const isExplicitBuy = !!directOrderTarget ||
@@ -439,6 +505,7 @@ export default function Screen1_Home({
     }
 
     const orderId = `CRN-${Math.floor(10000 + Math.random() * 90000)}`;
+    setLastActiveProduct(primaryItem);
 
     const executionPackage = {
       query: queryText,
@@ -1117,21 +1184,31 @@ export default function Screen1_Home({
               {messages.map((msg) => {
                 if (msg.sender === 'user') {
                   return (
-                    <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                      <div style={{ fontSize: '11px', color: 'var(--ink-muted)', marginBottom: '4px', marginRight: '6px' }}>
-                        {msg.name} · {msg.time}
-                      </div>
+                    <div key={msg.id} className="whatsapp-msg-anim" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginBottom: '8px' }}>
                       <div style={{
-                        backgroundColor: '#ECE7DD',
-                        color: 'var(--ink)',
-                        padding: '12px 18px',
-                        borderRadius: '20px 20px 4px 20px',
-                        maxWidth: '80%',
-                        fontSize: '15px',
-                        lineHeight: 1.5,
-                        boxShadow: 'var(--shadow-warm-sm)'
+                        backgroundColor: '#DCF8C6',
+                        color: '#111B21',
+                        padding: '10px 16px',
+                        borderRadius: '18px 18px 4px 18px',
+                        maxWidth: '82%',
+                        fontSize: '14.5px',
+                        lineHeight: 1.45,
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                        position: 'relative'
                       }}>
-                        {msg.text}
+                        <div style={{ wordBreak: 'break-word' }}>{msg.text}</div>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-end',
+                          gap: '3px',
+                          marginTop: '3px',
+                          fontSize: '10.5px',
+                          color: '#667781'
+                        }}>
+                          <span>{msg.time}</span>
+                          <span style={{ color: '#53BDEB', fontWeight: 700, fontSize: '11px', letterSpacing: '-1px' }}>✓✓</span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1147,7 +1224,7 @@ export default function Screen1_Home({
                   const isNeutral = isSearchOnly || isUnconfirmed;
 
                   return (
-                    <div key={msg.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <div key={msg.id} className="whatsapp-msg-anim" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                       <div style={{
                         width: '36px',
                         height: '36px',

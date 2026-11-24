@@ -1,0 +1,433 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[
+  top=1in,
+  bottom=1in,
+  left=1.2in,
+  right=1in
+]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\graphicspath{{screenshots/}}
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+\setlist[itemize]{leftmargin=1.5em,itemsep=2pt}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=2pt}
+\renewcommand{\arraystretch}{1.2}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\INR}{INR\,}
+\newcommand{\screenshot}[3]{%
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth,height=#3\textheight,keepaspectratio]{#1}
+    \caption{#2}
+    \label{fig:#1}
+  \end{figure}
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  frame=single,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Cairn: Governed Agentic Commerce}
+\fancyhead[R]{Project Report}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{15pt}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{0.8cm}
+  {\Large\bfseries RV UNIVERSITY\par}
+  \vspace{0.2cm}
+  {\small RV Vidyanikethan Post, 8th Mile, Mysuru Road, Bengaluru -- 560 059\par}
+  \vspace{0.65cm}
+  {\large\bfseries SCHOOL OF COMPUTER SCIENCE AND ENGINEERING\par}
+  \vspace{1.3cm}
+  {\Large Project Report\par}
+  \vspace{0.5cm}
+  {\LARGE\bfseries Cairn: A Governed Agentic-Commerce Platform\par}
+  \vspace{0.3cm}
+  {\large Buyer and Merchant Workflows with a Shared Deterministic Governance Layer\par}
+  \vspace{1.0cm}
+  {\large CS4951 -- Major Project\par}
+  \vspace{0.25cm}
+  {\large Bachelor of Science (Honours)\par}
+  \vspace{1.0cm}
+  {\large\bfseries Submitted by\par}
+  \vspace{0.3cm}
+  \begin{tabular}{ll}
+    Hampana SS & 1RVU23BSC050 \\
+    Shamitha Reddy N & 1RVU23BSC131 \\
+    Mohnish G Naidu & 1RVU23BSC084 \\
+    Kotta Sivaganesh & 1RVU23BSC069
+  \end{tabular}
+  \vspace{0.9cm}
+
+  {\large\bfseries Under the guidance of\par}
+  \vspace{0.2cm}
+  Prof.\ Anoop A\\
+  Assistant Professor, School of Computer Science and Engineering
+
+  \vfill
+  {\large August -- December 2026\par}
+\end{titlepage}
+
+\pagenumbering{roman}
+
+\chapter*{Declaration}
+\addcontentsline{toc}{chapter}{Declaration}
+We declare that this report describes the Cairn major project undertaken by
+the student team listed on the title page. The implementation status and
+limitations are reported as observed in the repository at the time of writing.
+Any institution-specific declaration wording and signatures should be reviewed
+and completed by the authors and project guide before formal submission.
+
+\chapter*{Acknowledgement}
+\addcontentsline{toc}{chapter}{Acknowledgement}
+We thank our project guide, Prof.\ Anoop A, and the School of Computer Science
+and Engineering at RV University for their guidance and support. We also thank
+our families and peers for their encouragement during the project.
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+Cairn is a buyer--merchant e-commerce prototype designed around the principle
+that AI agents may interpret requests and propose actions, while explicit
+software rules and human approvals control consequential commerce operations.
+The project combines a React and Vite interface with a FastAPI backend,
+SQLite-backed marketplace data, vendor discovery and allocation, order
+life-cycle operations, scoped notifications, and an optional local Ollama
+integration. The buyer experience includes governed shopping concepts,
+spending preferences, order status and notifications; the merchant experience
+provides an order inbox and operational views.
+
+The backend prototype includes ten synthetic Bengaluru vendors, geolocation
+helpers, ranked inventory allocation and reservation, merchant order actions,
+buyer/vendor notifications, server-sent events (SSE), SLA records, a sandbox
+payment adapter and verifiable receipt support. The automated backend suite
+contains 37 passing tests and the frontend production build completes. These
+results establish a functional local prototype, not production readiness.
+Important remaining work includes authenticated identities and ownership
+checks, connecting allocation to governance decisions, transactional and
+idempotent order writes, validated end-to-end location data, durable
+notifications, and production database migrations.
+
+\textbf{Keywords:} agentic commerce, deterministic governance, human approval,
+marketplace allocation, explainability, order life cycle.
+
+\tableofcontents
+\listoffigures
+\listoftables
+\clearpage
+\pagenumbering{arabic}
+
+\chapter{Introduction}
+
+\section{Background}
+Conversational AI can make product discovery easier, but an agent that is
+allowed to initiate purchases also creates risks: spending beyond a buyer's
+intent, acting on untrusted merchant data, or making decisions that are hard to
+explain. Cairn explores a design in which an agent can help with discovery
+without being treated as the authority for payment, approval, or inventory
+decisions.
+
+\section{Problem statement}
+The project addresses the need for a two-sided commerce workflow in which
+buyer intent, seller fulfillment, and marketplace actions are visible and
+traceable. A useful prototype must demonstrate both the buyer journey and the
+merchant order journey, connect them to backend data, and disclose when a
+workflow still relies on demo data or has unresolved security boundaries.
+
+\section{Objectives}
+\begin{enumerate}
+  \item Provide buyer and merchant interfaces with consistent navigation and
+        accessible interaction patterns.
+  \item Keep purchase authorization and policy checks in deterministic
+        application logic rather than delegating them to a language model.
+  \item Model vendors, inventory, delivery areas, reservations, and order
+        allocation for a local marketplace prototype.
+  \item Support merchant order actions and reflect their updates in buyer
+        orders and notifications.
+  \item Add focused backend tests and document the current implementation and
+        its production blockers.
+\end{enumerate}
+
+\section{Scope and status}
+This report covers the local prototype in the repository. The ten seeded
+Bengaluru vendors are synthetic demonstration records. The payment integration
+is a sandbox adapter, and Ollama is an optional local inference service. The
+prototype must not be used to process real customer payments or represent the
+seeded vendors as real businesses.
+
+\chapter{System Design}
+
+\section{Design principles}
+\begin{itemize}
+  \item \textbf{Agents propose; application rules decide.} Language models can
+        help interpret or summarize requests, but purchase and allocation
+        decisions require explicit deterministic checks.
+  \item \textbf{Human control.} Buyer approval and opt-in notification sound
+        provide user control where the interface supports them.
+  \item \textbf{Explainability.} Order status, governance concepts and
+        receipt information should be presented in user-understandable terms.
+  \item \textbf{Fail honestly.} Missing backend data or unavailable services
+        should not be presented as verified outcomes.
+  \item \textbf{Two-sided synchronization.} Merchant order actions should
+        update the corresponding buyer view through shared backend state.
+\end{itemize}
+
+\section{Architecture}
+The frontend is a React application served by Vite. It calls a FastAPI
+backend, which exposes governance, marketplace, order, notification, payment
+sandbox and telemetry operations. SQLite stores local prototype data. The
+backend contains separate modules for vendor storage, geolocation, allocation,
+order life cycle, notifications, payment simulation and receipts. The LLM
+client can call a local Ollama server; deterministic fallback behavior is
+available when that service cannot be reached.
+
+\begin{table}[H]
+  \centering
+  \caption{Main implementation components}
+  \label{tab:components}
+  \begin{tabularx}{\textwidth}{p{0.23\textwidth}YY}
+    \toprule
+    \textbf{Layer} & \textbf{Technology or module} & \textbf{Responsibility} \\
+    \midrule
+    User interface & React, Vite, CSS & Buyer and merchant screens,
+      navigation, order status and notifications \\
+    API & FastAPI, Uvicorn & Health, governance, vendor, allocation,
+      order and notification endpoints \\
+    Governance & Python modules & Authorization, policy checks, conflict
+      detection, risk scoring and explanations \\
+    Marketplace & \texttt{backend/marketplace/} & Vendor data, location
+      helpers, allocation, reservations, notifications and order service \\
+    Persistence & SQLite & Local prototype records and test databases \\
+    Language model & Ollama client & Optional local intent/agent assistance
+      with a deterministic fallback \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Request and order flow}
+\begin{enumerate}
+  \item The buyer describes a need or opens a marketplace workflow.
+  \item The application obtains vendor and inventory candidates using the
+        available location and product information.
+  \item The allocation service filters and ranks candidates and attempts to
+        reserve stock.
+  \item The merchant reviews an allocated order and may accept, prepare,
+        reject, propose a price change, or provide shipment details.
+  \item The backend updates order data and creates buyer/vendor notifications.
+        The interfaces refresh through scoped SSE and polling fallback.
+  \item The buyer reviews the updated order state. Notification sound is
+        opt-in and requires the browser tab to remain open.
+\end{enumerate}
+
+\textbf{Important boundary:} the current marketplace allocation endpoint is
+not yet routed through the deterministic governance engine. Therefore the
+prototype's presence of both governance modules and allocation APIs does not
+mean that every allocation is currently governed end-to-end.
+
+\chapter{Implementation}
+
+\section{Buyer experience}
+The buyer side includes role selection, sign-in options, Explore with Aria,
+spending-rule controls, order status, and a notification centre. The interface
+is designed around a calm visual style and explicit controls. The eight
+screenshots included with this report are UI captures; screenshots alone do
+not verify that an LLM response or purchase took place.
+
+\section{Merchant experience}
+The merchant side includes dashboard and store-health views, a vendor order
+inbox, and actions for accepting, preparing, rejecting, reallocating and
+dispatching an order. Shipment confirmation requires a carrier and tracking
+reference. Lifecycle changes are shared with the buyer order view in the
+prototype.
+
+\section{Vendor allocation and geolocation}
+The marketplace store seeds ten synthetic vendors in Bengaluru when the
+vendor table is empty. The geolocation module provides haversine distance and
+service-radius helpers. Allocation filters and ranks possible vendor
+inventory, then reserves stock. Known gaps remain: the buyer flow often sends
+locality rather than validated coordinates, custom location entry is not
+geospatially resolved correctly, and price bounds and vendor-open status are
+not consistently enforced as eligibility conditions.
+
+\section{Notifications and service levels}
+Buyer/vendor notifications are persisted and scoped SSE updates are supported,
+with periodic polling as a refresh fallback. The event delivery mechanism is
+process-local, has no replay or cross-worker delivery, and is not an
+authenticated push service. SLA records are created for order acknowledgement
+and dispatch, but breach checks are manually triggered rather than managed by
+a supervised scheduler.
+
+\section{Ollama and API key requirements}
+The local Ollama path does not require a provider API key. A developer can
+install Ollama, pull the configured model, start the local service, and run
+the backend with the repository's settings. The README documents an example
+using \texttt{llama3.2:1b}. An external hosted LLM provider would require its
+own credential, but no such key should be committed to the repository.
+Regardless of model availability, authorization and commerce policy should
+remain deterministic.
+
+\section{Sandbox payments and receipts}
+The payment module provides a deterministic sandbox adapter for create,
+confirm and refund operations, and the receipt module supports HMAC-SHA256
+signing and verification. These are prototype facilities only: no real
+payment gateway, webhook verification, bank settlement, or refund policy is
+connected.
+
+\chapter{Screenshots and User Interface}
+The screenshots below are stored in the repository's \texttt{screenshots/}
+folder and can be uploaded with the report to Overleaf. The three merchant
+captures were taken while backend data was unavailable; they document the UI
+state, not live order, inventory, SLA or governance measurements.
+
+\screenshot{01-role-selection.png}
+  {Role selection landing page for buyer and merchant experiences}{0.70}
+
+\screenshot{02-buyer-explore.png}
+  {Buyer Explore screen with the Aria conversational entry point}{0.70}
+
+\screenshot{03-buyer-sign-in.png}
+  {Buyer sign-in screen with Google, demo and guest options}{0.70}
+
+\screenshot{04-aria-governance-processing.png}
+  {Aria request and governance processing UI state; not evidence of a completed order}{0.70}
+
+\screenshot{05-merchant-buyer-orders.png}
+  {Merchant buyer-orders view captured while backend data was unavailable}{0.70}
+
+\screenshot{06-merchant-dashboard.png}
+  {Merchant dashboard layout captured while backend data was unavailable}{0.70}
+
+\screenshot{07-merchant-store-health-audit.png}
+  {Store health and audit layout captured while backend data was unavailable}{0.70}
+
+\screenshot{08-buyer-spending-rules.png}
+  {Buyer spending rules and safeguards interface}{0.70}
+
+\chapter{Testing and Results}
+
+\section{Validation performed}
+The repository validation recorded for this prototype is summarized in
+Table~\ref{tab:validation}. The backend tests use isolated SQLite test
+databases. The results are evidence for the tested prototype paths; they do
+not establish production security, concurrent inventory correctness, or
+complete end-to-end reliability.
+
+\begin{table}[H]
+  \centering
+  \caption{Prototype validation results}
+  \label{tab:validation}
+  \begin{tabularx}{\textwidth}{p{0.30\textwidth}p{0.19\textwidth}Y}
+    \toprule
+    \textbf{Check} & \textbf{Result} & \textbf{Interpretation} \\
+    \midrule
+    Backend test suite & 37 passed & Covers API, governance, LLM client and
+      marketplace lifecycle paths in isolated test databases \\
+    Frontend production build & Passed & Vite generated a production build \\
+    Frontend lint & Passed with warnings & Existing lint warnings remain and
+      should be addressed separately \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\section{Tested marketplace behaviors}
+Focused tests cover vendor allocation, notifications, accept/prepare/dispatch,
+price proposals, and reject/reallocate/accept. These tests do not prove
+correctness under concurrent allocation load or failures across multiple
+database writes. Browser end-to-end tests for the full buyer-to-merchant
+workflow remain future work.
+
+\section{Limitations and production blockers}
+\begin{enumerate}
+  \item \textbf{Identity and authorization:} buyer and vendor identity is
+        demo-grade. Caller-supplied identifiers are not a substitute for
+        authenticated principals, and order ownership is not enforced
+        consistently.
+  \item \textbf{Governance integration:} allocation can create an order
+        without invoking the deterministic governance engine or approval
+        policy.
+  \item \textbf{Atomicity and idempotency:} reservation, order, SLA and
+        notification writes are separate operations. Retries and partial
+        failures can produce inconsistent records or stranded reservations.
+  \item \textbf{Location:} buyer coordinates are not consistently used and
+        validated across discovery and allocation.
+  \item \textbf{Notifications and SLAs:} SSE is process-local and unauthenticated;
+        there is no replay, durable cross-worker bus, scheduled SLA worker or
+        closed-app push delivery.
+  \item \textbf{Database portability:} SQLite-specific SQL is present.
+        PostgreSQL compatibility and migration behavior have not been
+        established.
+  \item \textbf{External services:} there are no real payment, email, SMS,
+        WhatsApp or push-notification integrations. Seed vendors and data are
+        synthetic.
+\end{enumerate}
+
+\chapter{Conclusion and Future Work}
+
+\section{Conclusion}
+Cairn demonstrates a two-sided agentic-commerce prototype with buyer and
+merchant workflows, backend marketplace data, vendor allocation, order
+life-cycle actions, synchronized in-app notifications, optional local Ollama
+assistance, and governance-oriented explanations. The implementation has
+focused automated backend coverage and builds successfully. The current
+result is suitable for local demonstration and further development, but not
+for real customer orders, real payments, or production vendor onboarding.
+
+\section{Recommended next steps}
+\begin{enumerate}
+  \item Add authenticated buyer and vendor principals and enforce ownership
+        checks for all order and notification operations.
+  \item Route allocation and purchase actions through the deterministic
+        governance and approval workflow.
+  \item Make reservation, allocation, order, SLA and notification writes
+        transactional and idempotent; test retries and failure recovery.
+  \item Validate location input and use the same resolved coordinates for
+        discovery and allocation.
+  \item Add authenticated durable notification delivery and a scheduled SLA
+        processor.
+  \item Introduce versioned migrations and test the intended production
+        database dialect.
+  \item Add browser end-to-end and concurrent-allocation tests before
+        integrating real vendors or payment services.
+\end{enumerate}
+
+\chapter*{References}
+\addcontentsline{toc}{chapter}{References}
+\begin{enumerate}
+  \item React, ``React Documentation.'' Available:
+        \url{https://react.dev/}
+  \item FastAPI, ``FastAPI Documentation.'' Available:
+        \url{https://fastapi.tiangolo.com/}
+  \item Ollama, ``Ollama Documentation.'' Available:
+        \url{https://docs.ollama.com/}
+  \item Amazon, ``Seller Central.'' Available:
+        \url{https://sell.amazon.com/tools/seller-central}
+  \item Cairn project repository. Available:
+        \url{https://github.com/Mohnish-140605/agentic_governance_ecommerce}
+\end{enumerate}
+
+\end{document}
