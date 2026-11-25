@@ -24,7 +24,11 @@ __pycache__/
 .pytest_cache/
 backend/database/*.db
 backend/database/*.sqlite
+backend/database/*.db-shm
+backend/database/*.db-wal
 *.db
+*.db-shm
+*.db-wal
 
 # Editor directories and files
 .vscode/*

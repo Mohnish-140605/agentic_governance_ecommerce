@@ -120,6 +120,30 @@ class BuyerAgent:
 
         # Match items
         matched = []
+        # 1. Prioritize merchant listings (PDF catalog uploads & persistent inventory)
+        try:
+            from ..models.database import db
+            for l in db.get_listings():
+                l_name = str(l.get("name") or "").lower()
+                l_cat = str(l.get("category") or "").lower()
+                l_specs = str(l.get("specs") or "").lower()
+                query_words = [w for w in q.split() if len(w) > 2]
+                if q in l_name or (query_words and any(w in l_name or w in l_cat for w in query_words)):
+                    matched.append({
+                        "id": l["id"],
+                        "name": l["name"],
+                        "category": l.get("category", "Living"),
+                        "price": float(l.get("price", 1000.0)),
+                        "specs": l.get("specs") or f"{l.get('category', 'Living')} · Verified Merchant Catalog",
+                        "acoustics": "Certified Operation",
+                        "partner": l.get("merchant", "Verified Merchant"),
+                        "verified": True,
+                        "delivery": "Local Fulfilment",
+                        "keywords": [w for w in l_name.split() if len(w) > 2]
+                    })
+        except Exception:
+            pass
+
         for item in CATALOG:
             if any(k in q for k in item["keywords"]) or any(k in item["name"].lower() for k in q.split()):
                 matched.append(item)

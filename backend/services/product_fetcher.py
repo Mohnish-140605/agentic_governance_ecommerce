@@ -52,9 +52,10 @@ class OnlineProductFetcher:
     def search_online_products(self, query: str, limit: int = 6) -> List[Dict[str, Any]]:
         """
         Main entry point:
-        1. Queries DummyJSON open e-commerce catalog (real products, specs, ratings, photos).
-        2. Queries DuckDuckGo Instant Answers for live search if query is specific.
-        3. Normalizes all products to Cairn format with prices in ₹ INR.
+        1. Checks merchant catalog listings from the database (including PDF uploads).
+        2. Queries DummyJSON open e-commerce catalog (real products, specs, ratings, photos).
+        3. Queries DuckDuckGo Instant Answers for live search if query is specific.
+        4. Normalizes all products to Cairn format with prices in ₹ INR.
         """
         clean_query = query.strip()
         results: List[Dict[str, Any]] = []
@@ -68,6 +69,50 @@ class OnlineProductFetcher:
         ]
         if any(trigger in q_lower for trigger in conversational_triggers):
             return []
+
+        # 0. Search local persistent merchant listings (PDF catalog uploads & artisan inventory)
+        try:
+            from ..models.database import db
+            merchant_listings = db.get_listings()
+            query_words = [w for w in re.split(r'\s+', q_lower) if len(w) > 1]
+            
+            for listing in merchant_listings:
+                name = str(listing.get("name") or "")
+                name_lower = name.lower()
+                cat = str(listing.get("category") or "")
+                cat_lower = cat.lower()
+                specs = str(listing.get("specs") or "")
+                specs_lower = specs.lower()
+                merchant = str(listing.get("merchant") or "Verified Partner")
+
+                # Match if query is in name/cat/specs or if any significant word matches
+                is_match = False
+                if q_lower in name_lower or q_lower in cat_lower or q_lower in specs_lower:
+                    is_match = True
+                elif query_words and any(w in name_lower or w in cat_lower for w in query_words):
+                    is_match = True
+
+                if is_match:
+                    inr_price = int(round(float(listing.get("price") or 0)))
+                    results.append({
+                        "id": listing["id"],
+                        "name": name,
+                        "brand": merchant,
+                        "category": cat.capitalize() if cat else "Living",
+                        "price": inr_price,
+                        "msrp": int(round(inr_price * 1.15)),
+                        "rating": "4.9 ★",
+                        "stock": int(listing.get("stock") or 10),
+                        "description": specs or f"{name} provided by {merchant}.",
+                        "specs": specs or f"{cat} · Verified Merchant Catalog Listing",
+                        "image": None,
+                        "source": "Merchant Catalog (PDF Ingested)",
+                        "is_merchant_product": True,
+                        "badge": listing.get("badge") or "Catalog Verified",
+                        "vendor_id": listing.get("vendor_id") or "VEN-BLR-001"
+                    })
+        except Exception as e:
+            print(f"[OnlineProductFetcher] Merchant catalog search notice: {e}")
 
         # 1. Search Open E-commerce Catalog (Over 2,000 real items across electronics, home, living)
         try:

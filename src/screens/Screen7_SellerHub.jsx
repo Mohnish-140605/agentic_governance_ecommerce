@@ -6,6 +6,7 @@ import TopProducts from '../components/merchant/TopProducts';
 import GovernanceOverview from '../components/merchant/GovernanceOverview';
 import SLAOverview from '../components/merchant/SLAOverview';
 import VendorOrderInbox from '../components/merchant/VendorOrderInbox';
+import PDFCatalogUploader from '../components/merchant/PDFCatalogUploader';
 import {
   fetchAuditLogs,
   fetchGovernanceSummary,
@@ -274,6 +275,12 @@ export default function Screen7_SellerHub({
           onShowToast={onShowToast}
           currentUser={currentUser}
           onVendorChange={onVendorChange}
+        />
+
+        <PDFCatalogUploader
+          onUploadSuccess={() => loadBackendData({ manual: true })}
+          onShowToast={onShowToast}
+          currentUser={currentUser}
         />
 
         <KPICards

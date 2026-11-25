@@ -18,10 +18,12 @@ import math
 from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional
 
-from fastapi import FastAPI, HTTPException, Body, Request, Response
+from fastapi import FastAPI, HTTPException, Body, Request, Response, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from .services.pdf_catalog_parser import parse_pdf_catalog
 
 try:
     from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -423,14 +425,16 @@ async def handle_human_approval(request: ApprovalRequest):
 
     order_id = request.proposal_id if request.proposal_id.startswith("CRN-") else f"CRN-{request.proposal_id[-5:]}"
     if request.decision.upper() == "APPROVE":
-        db.update_order_status(order_id, "placed")
+        if not db.update_order_status(order_id, "placed"):
+            raise HTTPException(status_code=404, detail=f"Order {order_id} was not found.")
         return {
             "status": "AUTHORIZED",
             "message": f"Order #{request.proposal_id} approval recorded. Seller fulfillment remains pending.",
             "execution_permitted": True
         }
     else:
-        db.update_order_status(order_id, "failed")
+        if not db.update_order_status(order_id, "failed"):
+            raise HTTPException(status_code=404, detail=f"Order {order_id} was not found.")
         return {
             "status": "RELEASED",
             "message": f"Order #{request.proposal_id} was released. Payment and fulfillment are not connected in this demo.",
@@ -609,6 +613,151 @@ async def create_merchant_listing(payload: Dict[str, Any] = Body(...)):
             "audit_hash": result.audit_hash
         },
         "message": f"Listing '{name}' passed governance and was published to the Cairn catalog."
+    }
+
+
+@app.post("/api/merchant/upload-catalog")
+async def upload_merchant_catalog(
+    file: UploadFile = File(...),
+    vendor_id: Optional[str] = Form(None),
+    merchant_name: Optional[str] = Form(None)
+):
+    """
+    Parses a merchant's uploaded PDF catalog, evaluates each product through
+    the deterministic Governance Engine, and publishes the products into
+    persistent listings and nearby vendor inventory so buyers can discover
+    them through Aria and location-based allocation.
+    """
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF catalog files (.pdf) are supported.")
+    
+    try:
+        content = await file.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read uploaded file: {str(e)}")
+
+    if not content:
+        raise HTTPException(status_code=400, detail="The uploaded PDF file is empty.")
+
+    extracted_products = parse_pdf_catalog(content)
+    if not extracted_products:
+        raise HTTPException(
+            status_code=422,
+            detail="No products could be extracted from this PDF. Please ensure the document includes product names and prices (e.g. ₹ or Rs.)."
+        )
+
+    merchant = (merchant_name or "").strip() or "Verified Artisan Studio"
+    assigned_vendor_id = (vendor_id or "").strip() or "VEN-BLR-001"
+
+    # Fetch active vendors so products are registered across the local vendor fulfillment network
+    vendors_list = store.list_vendors()
+    
+    published_products = []
+    from .models.database import SessionLocal
+    from sqlalchemy import text
+    
+    for prod in extracted_products:
+        prod_id = prod["id"]
+        prod_name = prod["name"]
+        price = float(prod["price"])
+        stock = int(prod.get("stock", 10))
+        category = prod.get("category", "Living")
+        specs = prod.get("specs", "")
+        badge = prod.get("badge", "PDF Catalog Verified")
+        
+        # 1. Govern each listing
+        proposal = ActionProposal(
+            agent_id="merchant_studio",
+            agent_role=AgentRole.MERCHANT_AGENT,
+            action_type=ActionType.CREATE_LISTING,
+            product_id=prod_id,
+            product_name=prod_name,
+            category=category,
+            requested_price=price,
+            merchant_name=merchant,
+            user_id=None,
+            metadata={"listing_price": price, "stock": stock, "category": category, "specs": specs}
+        )
+        gov_res = workflow.governance_engine.evaluate(proposal)
+        
+        # Log to audit ledger
+        try:
+            db.log_audit_record(
+                proposal_id=proposal.proposal_id,
+                agent_id=proposal.agent_id,
+                agent_role=proposal.agent_role.value,
+                action_type=proposal.action_type.value,
+                requested_price=proposal.requested_price,
+                decision=gov_res.decision.value,
+                reason_code=gov_res.reason_code,
+                risk_score=gov_res.risk.composite_score,
+                has_conflict=gov_res.conflict.has_conflict,
+                sha256_hash=gov_res.audit_hash,
+                evidence=gov_res.evidence,
+                explainability=gov_res.explainability
+            )
+        except Exception as err:
+            _log("warning", "pdf_catalog_audit_log_failed", error=str(err))
+
+        # 2. Store in persistent merchant_listings table
+        db.add_listing(
+            listing_id=prod_id,
+            name=prod_name,
+            merchant=merchant,
+            price=price,
+            stock=stock,
+            category=category,
+            badge=badge,
+            status="Verified & Active",
+            specs=specs,
+            vendor_id=assigned_vendor_id
+        )
+
+        # 3. Register offers into vendor_products across the vendor network
+        # This enables location-based nearby vendor assignment!
+        price_paise = int(round(price * 100))
+        try:
+            with SessionLocal() as session:
+                for v in vendors_list:
+                    vid = v["id"]
+                    v_offer_id = f"vp-{vid[-7:]}-{prod_id[-8:]}"
+                    session.execute(text("""
+                        INSERT OR REPLACE INTO vendor_products
+                        (id, vendor_id, product_id, product_name, category, price_paise, stock, specs, status, created_at)
+                        VALUES (:id, :vid, :pid, :pname, :cat, :price_paise, :stock, :specs, 'active', :ts)
+                    """), {
+                        "id": v_offer_id,
+                        "vid": vid,
+                        "pid": prod_id,
+                        "pname": prod_name,
+                        "cat": category,
+                        "price_paise": price_paise,
+                        "stock": stock,
+                        "specs": specs,
+                        "ts": time.time()
+                    })
+                session.commit()
+        except Exception as vp_err:
+            _log("warning", "vendor_products_sync_failed", error=str(vp_err))
+
+        published_products.append({
+            "id": prod_id,
+            "name": prod_name,
+            "price": price,
+            "stock": stock,
+            "category": category,
+            "specs": specs,
+            "merchant": merchant,
+            "governance_decision": gov_res.decision.value
+        })
+
+    _log("info", "pdf_catalog_uploaded", product_count=len(published_products), merchant=merchant)
+
+    return {
+        "status": "success",
+        "message": f"Successfully parsed and published {len(published_products)} products from PDF catalog.",
+        "count": len(published_products),
+        "products": published_products
     }
 
 

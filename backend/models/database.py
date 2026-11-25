@@ -124,12 +124,22 @@ class Database:
                 category TEXT,
                 badge TEXT,
                 status TEXT,
+                specs TEXT,
+                vendor_id TEXT,
                 created_at REAL
             )""",
         ]
         with self._get_session() as session:
             for stmt in stmts:
                 session.execute(text(stmt))
+            for col, ddl in [
+                ("specs", "ALTER TABLE merchant_listings ADD COLUMN specs TEXT"),
+                ("vendor_id", "ALTER TABLE merchant_listings ADD COLUMN vendor_id TEXT"),
+            ]:
+                try:
+                    session.execute(text(ddl))
+                except Exception:
+                    pass
 
             legacy_listings = [
                 ("SKU-7729", "Minimal Japanese Ceramic Mug (Chalk White)", "Studio Hasami Crafts", 1800.0, 24, "Living", "VERIFIED", "Verified & Active"),
@@ -262,16 +272,17 @@ class Database:
     # ── Listings ───────────────────────────────────────────────────────
     def add_listing(self, listing_id: str, name: str, merchant: str, price: float,
                     stock: int, category: str = "Living", badge: str = "VERIFIED",
-                    status: str = "Verified & Active"):
+                    status: str = "Verified & Active", specs: str = "", vendor_id: str = ""):
         with self._get_session() as session:
             session.execute(text("""
                 INSERT OR REPLACE INTO merchant_listings
-                (id,name,merchant,price,stock,category,badge,status,created_at)
-                VALUES (:id,:name,:merchant,:price,:stock,:category,:badge,:status,:ts)
+                (id,name,merchant,price,stock,category,badge,status,specs,vendor_id,created_at)
+                VALUES (:id,:name,:merchant,:price,:stock,:category,:badge,:status,:specs,:vendor_id,:ts)
             """), {
                 "id": listing_id, "name": name, "merchant": merchant,
                 "price": price, "stock": stock, "category": category,
-                "badge": badge, "status": status, "ts": time.time()
+                "badge": badge, "status": status, "specs": specs,
+                "vendor_id": vendor_id, "ts": time.time()
             })
             session.commit()
 

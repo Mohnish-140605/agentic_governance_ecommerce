@@ -254,3 +254,35 @@ export async function verifyReceipt(receipt) {
     method: 'POST', body: JSON.stringify({ receipt }),
   }, 4000);
 }
+
+// ── Merchant PDF Catalog Ingestion ─────────────────────────────────────────
+export async function uploadMerchantCatalog(file, vendorId = '', merchantName = '') {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25000); // 25s timeout for PDF upload & parsing
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (vendorId) formData.append('vendor_id', vendorId);
+    if (merchantName) formData.append('merchant_name', merchantName);
+
+    const res = await fetch(`${BACKEND_URL}/api/merchant/upload-catalog`, {
+      method: 'POST',
+      body: formData,
+      signal: ctrl.signal,
+      headers: {
+        'X-Correlation-ID': correlationId(),
+      },
+    });
+    clearTimeout(timer);
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg = data?.detail || data?.message || `Upload failed with HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return data;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
