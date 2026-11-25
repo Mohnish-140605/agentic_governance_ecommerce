@@ -1,14 +1,6 @@
 # Cairn · Governed Agentic E-Commerce Platform
 
-<div align="center">
 
-```
-   ____      _              
-  / ___|__ _(_)_ __ _ __    
- | |   / _` | | '__| '_ \   · Mindful Shopping with Aria
- | |__| (_| | | |  | | | |  · Deterministic AI Safeguards
-  \____\__,_|_|_|  |_| |_|  · Cryptographic Verification & Zero Dark Patterns
-```
 
 **An enterprise-grade agentic e-commerce platform where autonomous AI shopping delegation is strictly governed by deterministic rule engines, client-signed constraints, cryptographic state verification, and human-in-the-loop safeguards.**
 
